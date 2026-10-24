@@ -30,7 +30,7 @@ alerts. **Older alerts have unknown source identities**: their BSSID is not
 silently treated as a source, and the dashboard displays a legacy-data notice.
 The popup distinguishes contributing-source association from BSSID-only context.
 Sources stop being highlighted when no unexpired retained alert references them.
-The general event-driven database cleanup timing remains documented separately
+The general timer-driven database cleanup timing remains documented separately
 in [Operations](OPERATIONS.md).
 
 ## Vendor registry and privacy

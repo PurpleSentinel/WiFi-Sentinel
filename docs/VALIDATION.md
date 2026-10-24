@@ -86,6 +86,17 @@ rendering produced a static logo, with no browser JavaScript errors.
   with its advertisement evidence. No browser JavaScript errors were observed.
 - Monitoring remained on channel 6. No firmware or Pi network changes were made.
 
+### Idle retention cleanup — 2026-10-24
+
+- All 58 collector tests passed. A time-controlled running-server test advanced
+  the clock past retention, ticked the independent cleanup timer, and verified
+  expired frames and alerts disappeared from the APIs with no further ingestion.
+  Sensor registration remained present.
+- Regression checks confirmed cleanup failures are logged and retried, and
+  shutdown joins the worker before closing SQLite, including context exceptions.
+- The live service reported its 60-second retention schedule at startup; the
+  LAN API remained healthy and the sensor remained on channel 6.
+
 ## What has NOT been validated
 
 - C5 compilation and hardware operation; only the C6 target has been built/flashed in this installation.

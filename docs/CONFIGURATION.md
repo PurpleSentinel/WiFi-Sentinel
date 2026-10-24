@@ -44,6 +44,10 @@ Saving starts fresh detector windows. Shortening retention immediately removes
 expired records. SSID matching currently remains case-insensitive, and firmware
 still sanitizes non-ASCII SSIDs (tracked in issue #5).
 
+While the web service is running, a dedicated worker attempts retention cleanup
+every 60 seconds even without sensor traffic. See [Operations](OPERATIONS.md)
+for timing, failure handling and shutdown behavior.
+
 Saved values live beside the database, using the database stem with suffix
 `.settings.json` (default `sentinel.settings.json`). They override environment
 values for the editable detection/retention settings on subsequent startups.
