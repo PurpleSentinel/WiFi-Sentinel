@@ -80,7 +80,7 @@ wifi-sentinel demo
 wifi-sentinel serve
 ```
 
-The dashboard is `http://127.0.0.1:8080`. For a plugged-in board, stop the monitor terminal so it releases the serial port, then:
+The dashboard is `http://127.0.0.1:8181`. For a plugged-in board, stop the monitor terminal so it releases the serial port, then:
 
 ```bash
 export WIDS_SERIAL_PORT=/dev/ttyACM0   # substitute your exact device

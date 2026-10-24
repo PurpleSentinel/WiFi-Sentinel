@@ -14,9 +14,9 @@ For systematic boot start, see `docs/RASPBERRY_PI.md` for the user service templ
 ## Health
 
 ```bash
-curl -s http://127.0.0.1:8080/api/health
-curl -s http://127.0.0.1:8080/api/summary
-curl -s 'http://127.0.0.1:8080/api/alerts?limit=10'
+curl -s http://127.0.0.1:8181/api/health
+curl -s http://127.0.0.1:8181/api/summary
+curl -s 'http://127.0.0.1:8181/api/alerts?limit=10'
 ```
 
 `/api/health` means only that the web service is reachable; it does not assert an active USB or healthy RF receive path. `/api/sensors` gives last-seen UTC and queue drop count; check it too.

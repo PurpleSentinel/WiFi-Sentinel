@@ -39,7 +39,7 @@ class Settings:
         return cls(
             database=Path(os.getenv("WIDS_DATABASE", "./sentinel.sqlite3")).expanduser(),
             host=os.getenv("WIDS_HOST", "127.0.0.1"),
-            port=_integer("WIDS_PORT", 8080),
+            port=_integer("WIDS_PORT", 8181),
             serial_port=raw_serial or None,
             baud=_integer("WIDS_BAUD", 115200),
             window_seconds=_integer("WIDS_WINDOW_SECONDS", 10),

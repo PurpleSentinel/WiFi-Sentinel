@@ -29,10 +29,10 @@ wifi-sentinel serve
 From another computer, leave the app bound to `127.0.0.1` and tunnel over SSH:
 
 ```bash
-ssh -L 8080:127.0.0.1:8080 pi@<pi-hostname-or-ip>
+ssh -L 8181:127.0.0.1:8181 pi@<pi-hostname-or-ip>
 ```
 
-Then browse `http://127.0.0.1:8080` on your workstation. Alternatively install an authenticated reverse proxy with TLS; **do not** set `WIDS_HOST=0.0.0.0` on an untrusted network because the dashboard currently has no login system.
+Then browse `http://127.0.0.1:8181` on your workstation. Alternatively install an authenticated reverse proxy with TLS; **do not** set `WIDS_HOST=0.0.0.0` on an untrusted network because the dashboard currently has no login system.
 
 ## 2. Connect the sensor
 
