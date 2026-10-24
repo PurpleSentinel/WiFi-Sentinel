@@ -1,0 +1,4 @@
+{"v":1,"kind":"heartbeat","sensor_id":"lab-c5","channel":6,"uptime_ms":15000,"captured":12,"dropped":0}
+{"v":1,"kind":"frame","sensor_id":"lab-c5","channel":6,"subtype":"beacon","sa":"02:11:22:33:44:55","da":"ff:ff:ff:ff:ff:ff","bssid":"02:11:22:33:44:55","rssi":-38,"protected":false,"reason_code":-1,"status_code":-1,"ssid":"ExampleLab","uptime_ms":20010}
+{"v":1,"kind":"frame","sensor_id":"lab-c5","channel":6,"subtype":"auth","sa":"02:aa:bb:cc:dd:01","da":"02:11:22:33:44:55","bssid":"02:11:22:33:44:55","rssi":-49,"protected":false,"reason_code":-1,"status_code":0,"ssid":null,"uptime_ms":20100}
+{"v":1,"kind":"frame","sensor_id":"lab-c5","channel":6,"subtype":"deauth","sa":"02:11:22:33:44:55","da":"02:aa:bb:cc:dd:01","bssid":"02:11:22:33:44:55","rssi":-50,"protected":false,"reason_code":7,"status_code":-1,"ssid":null,"uptime_ms":21500}

@@ -1,0 +1,104 @@
+# Fedora development workflow (GNOME / VS Code / terminal)
+
+## 1. Host dependencies
+
+```bash
+sudo dnf install -y git curl wget flex bison gperf cmake ninja-build ccache \
+  dfu-util libusbx python3 python3-pip python3-virtualenv python3-devel \
+  openssl-devel
+```
+
+Versions of Fedora differ in package names. If the above reports a missing package, use the [official ESP-IDF Linux setup](REFERENCES.md) for the exact set supported by your Fedora release. Use a non-root user for development.
+
+## 2. Install ESP-IDF (separate from this repo)
+
+Example known documented version: v5.5.4. Upgrading within a security-reviewed patch series is sensible. **Do not use early ESP32-C5 preview releases below v5.5.2 for production-revision C5 devices.**
+
+```bash
+mkdir -p ~/esp
+cd ~/esp
+git clone --recursive --branch v5.5.4 https://github.com/espressif/esp-idf.git
+cd esp-idf
+./install.sh esp32c5
+. ./export.sh
+idf.py --version
+```
+
+If you already have ESP-IDF installed, simply source its `export.sh` in each new terminal.
+
+## 3. Clone/import the local ZIP as a repository
+
+```bash
+unzip wifi-sentinel.zip
+cd wifi-sentinel
+git init
+git add .
+git commit -m "Initial WiFi Sentinel passive IDS prototype"
+```
+
+To publish later, create an empty repository using the GitHub website and follow the new repository's `git remote add origin ...` instructions. This archive does not make changes to your GitHub account.
+
+## 4. Build firmware
+
+```bash
+cd firmware
+idf.py set-target esp32c5
+idf.py menuconfig
+idf.py build
+```
+
+Select: `WiFi Sentinel sensor configuration` for band/channel/sensor ID. For serial reporting, ensure the **console output channel** matches the eBeetle PCB (native USB Serial/JTAG vs board UART bridge). The firmware relies on `printf` through the ESP-IDF console; it has no separate hardcoded pinout.
+
+## 5. Identify and flash the board
+
+```bash
+ls -l /dev/serial/by-id/ 2>/dev/null || true
+ls -l /dev/ttyACM* /dev/ttyUSB* 2>/dev/null || true
+# Example only: substitute YOUR board's actual serial device
+idf.py -p /dev/ttyACM0 flash monitor
+```
+
+You may need permissions to use the serial device:
+
+```bash
+id -nG
+sudo usermod -aG dialout "$USER"
+# Log out and in for group membership to take effect.
+```
+
+Do not grant world-writable serial permissions or use `chmod 777`.
+
+## 6. Run collector/dashboard on Fedora
+
+```bash
+cd ../collector
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[dev]'
+python -m pytest -q tests
+wifi-sentinel demo
+wifi-sentinel serve
+```
+
+The dashboard is `http://127.0.0.1:8080`. For a plugged-in board, stop the monitor terminal so it releases the serial port, then:
+
+```bash
+export WIDS_SERIAL_PORT=/dev/ttyACM0   # substitute your exact device
+wifi-sentinel serve
+```
+
+Only one process can open the serial port at a time. Native USB Serial/JTAG may enumerate differently when flashed or reset. Prefer `/dev/serial/by-id/...` if available.
+
+## 7. VS Code
+
+Install the official **Espressif IDF** and Python extensions. Open `wifi-sentinel/` as workspace. Point ESP-IDF extension to `~/esp/esp-idf` and the compiler environment. The firmware folder is an IDF project, while the Python package lives in `collector/`. Configure a Python interpreter at `collector/.venv/bin/python`.
+
+## Developer checks
+
+```bash
+cd collector
+python -m pytest -q tests
+python -m compileall -q wids
+# Optional after installing ruff:
+ruff check wids tests
+```

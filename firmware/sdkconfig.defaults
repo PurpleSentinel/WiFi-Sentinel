@@ -1,0 +1,3 @@
+# Target is selected with idf.py set-target esp32c5.
+# No board-specific LED, external GPIO or USB assumptions.
+CONFIG_COMPILER_OPTIMIZATION_DEFAULT=y

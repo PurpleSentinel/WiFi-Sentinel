@@ -1,0 +1,19 @@
+{
+  "folders": [{"path": "."}],
+  "settings": {
+    "python.defaultInterpreterPath": "${workspaceFolder}/collector/.venv/bin/python",
+    "python.testing.pytestEnabled": true,
+    "python.testing.pytestArgs": ["collector/tests"],
+    "files.exclude": {
+      "**/__pycache__": true,
+      "**/.pytest_cache": true,
+      "firmware/build": true
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "espressif.esp-idf-extension",
+      "ms-python.python"
+    ]
+  }
+}

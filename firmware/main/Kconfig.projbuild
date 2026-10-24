@@ -1,0 +1,38 @@
+menu "WiFi Sentinel sensor configuration"
+    config WIDS_SENSOR_ID
+        string "Sensor ID (letters, numbers, dots, dashes, underscore)"
+        default "c5-sensor-01"
+        help
+            Non-secret, stable identifier. Maximum 40 characters.
+
+    choice WIDS_BAND
+        prompt "Receive band (not simultaneous dual-band)"
+        default WIDS_BAND_2G
+        config WIDS_BAND_2G
+            bool "2.4 GHz"
+        config WIDS_BAND_5G
+            bool "5 GHz"
+    endchoice
+
+    config WIDS_CHANNEL
+        int "Fixed receive channel (legal for your regulatory region)"
+        default 6
+        range 1 177
+        help
+            2.4 GHz typical: 1, 6, 11. 5 GHz example: 36.
+            Check the correct band and local regulatory permissions.
+
+    config WIDS_BEACON_SAMPLE_N
+        int "Report one in N beacons and probe responses (per subtype, globally)"
+        default 20
+        range 1 1000
+        help
+            Beacon/probe sampling saves transport and storage bandwidth;
+            it makes beacon counts non-exhaustive. Flood frame types
+            are not sampled.
+
+    config WIDS_HEARTBEAT_SECONDS
+        int "Heartbeat period in seconds"
+        default 15
+        range 1 300
+endmenu

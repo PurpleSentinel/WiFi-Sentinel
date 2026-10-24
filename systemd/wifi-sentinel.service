@@ -1,0 +1,17 @@
+[Unit]
+Description=WiFi Sentinel local passive Wi-Fi IDS collector
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/wifi-sentinel/collector
+EnvironmentFile=%h/wifi-sentinel/collector/.env
+ExecStart=%h/wifi-sentinel/collector/.venv/bin/wifi-sentinel serve
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target
