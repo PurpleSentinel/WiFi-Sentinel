@@ -15,7 +15,7 @@ sequenceDiagram
   participant DB as SQLite
   participant Browser as Web UI
   RF->>ESP: Beacons, auth, assoc, deauth, disassoc
-  ESP->>ESP: Parse header; sample beacons; enqueue metadata
+  ESP->>ESP: Parse header, sample beacons, enqueue metadata
   ESP->>USB: WIDS v1 NDJSON line
   USB->>Pi: Read / validate event
   Pi->>Pi: Per-sensor/BSSID/channel sliding window
