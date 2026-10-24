@@ -71,6 +71,21 @@ rendering produced a static logo, with no browser JavaScript errors.
   passed. Sensor channel remained 6; no Pi network or other ESP device settings
   were modified, and no firmware reflash was needed for these changes.
 
+### Device role classification — 2026-10-24
+
+- 55 collector tests passed, including advertisement-based AP evidence, hidden
+  SSIDs, association/reassociation client evidence, rejected responses, mixed
+  roles, inconsistent headers, evidence expiry, and server-side role filtering
+  before limiting results. Existing source highlighting and lookup tests passed.
+- Five Playwright browser checks passed, including role labels/evidence, filter
+  persistence, paused filtering, popup consistency, red source links, keyboard
+  controls and mobile layout.
+- Live API checks distinguished 11 Access Points, one Client / Host and 25
+  Unknown addresses at the time of verification. All four role filters matched
+  their API classifications. The Nokia MAC popup displayed AP classification
+  with its advertisement evidence. No browser JavaScript errors were observed.
+- Monitoring remained on channel 6. No firmware or Pi network changes were made.
+
 ## What has NOT been validated
 
 - C5 compilation and hardware operation; only the C6 target has been built/flashed in this installation.

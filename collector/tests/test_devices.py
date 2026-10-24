@@ -19,10 +19,10 @@ def test_devices_keep_advertised_ssids_separate_from_clients(settings, frame):
     result = engine.store.devices()
     devices = {device['mac']: device for device in result['devices']}
     assert set(devices) == {beacon.bssid, client}
-    assert devices[beacon.bssid]['role'] == 'BSSID observed'
+    assert devices[beacon.bssid]['role'] == 'Access Point'
     assert devices[beacon.bssid]['ssids'] == ['Home, WiFi']
     assert devices[beacon.bssid]['frame_count'] == 3  # One count per frame, not per address field.
-    assert devices[client]['role'] == 'Client / other address'
+    assert devices[client]['role'] == 'Client / Host'
     assert devices[client]['ssids'] == []
     assert devices[client]['bssids'] == [beacon.bssid]
     assert devices[client]['frame_count'] == 2

@@ -8,7 +8,7 @@ filter and does not reload the page or change sensor monitoring.
 | Overview | 24-hour frame/alert metrics, sensor registration count, retained channels, activity charts and five latest alerts |
 | Alerts | Latest 200 retained alerts, severity filter, full alert context and JSON export |
 | Reporting | 24-hour subtype counts, retained channel counts and the latest 100 observed frames |
-| Devices | Up to 200 most recently observed unicast MAC addresses from the last 24 hours, with observed roles, directly advertised SSIDs, BSSID contexts, channels, last-seen UTC, frame counts and sensors |
+| Devices | Up to 200 most recently observed unicast MAC addresses from the last 24 hours, with AP/client/unknown classifications, evidence, directly advertised SSIDs, BSSID contexts, channels, last-seen UTC, frame counts and sensors |
 
 Only the active tab's data is requested on the five-second refresh cadence.
 Switching tabs cancels obsolete dashboard requests. Pause updates freezes display
@@ -31,18 +31,57 @@ Each frame is counted once per observed address, even when the same address
 appears in multiple header fields. This is observed-frame volume, not unique
 packet volume; retransmissions remain included.
 
-“BSSID observed” means an address appeared in the BSSID field. Other addresses
-are labelled “Client / other address”; this does not establish a device model,
-authenticated identity, or successful client connection. BSSID contexts describe
-headers observed with an address, not confirmed associations. An SSID appears
-only against the BSSID that advertised it in a beacon/probe response. Unknown or
-unadvertised SSIDs remain explicitly unknown. Multiple directly advertised SSIDs
-are preserved without splitting names that contain commas.
+### Device roles and evidence
 
-The API `GET /api/devices?limit=200` accepts limits from 1 through 500 and returns
-`window_hours`, `limit`, `has_more`, and `devices`. Each device includes `mac`,
-`role`, `ssids`, `bssids`, `channels`, `sensor_ids`, `first_seen`, `last_seen`, and
-`frame_count`. The dashboard indicates when the 200-address display limit is hit.
+The Devices filter separates **Access Points**, **Clients / Hosts**, **Mixed
+(AP + Client)** and **Unknown**. Labels are accompanied by evidence counts rather
+than inferred from a source, destination or BSSID header alone.
+
+- **Access Point**: a beacon or probe response was observed with its source equal
+  to the BSSID. A hidden/missing SSID does not negate this evidence.
+- **Client / Host**: an association/reassociation request originated from this
+  address, addressed to a different valid unicast BSSID; or an association/
+  reassociation response from that BSSID was addressed to this address. Rejected
+  responses still indicate a client role, not a successful connection.
+- **Mixed (AP + Client)**: both advertisement and client-role evidence exist for
+  the same address. Neither role silently takes precedence.
+- **Unknown**: insufficient consistent evidence. Authentication, disconnection
+  frames, BSSID-field presence, and advertisements with a source/BSSID mismatch
+  do not by themselves establish a role.
+
+Classification and evidence counts are recalculated from observations in the
+last **24 hours** on each refresh. As evidence expires, a role can change or
+become Unknown. No longer observing any frame for an address in that window
+removes it from Devices. The MAC details popup uses the same classifier and
+window; its separate header roles and local observations cover retained frames,
+which can be older. This distinction is labelled in the popup.
+
+These are observed roles, not authenticated identities or proof of connection.
+Consistently forged management frames can produce apparently valid role
+evidence. BSSID contexts remain observations, not confirmed associations. SSIDs
+appear only against the matching BSSID/source that advertised them; unknown or
+hidden SSIDs remain explicit. Names containing commas are preserved intact.
+
+Role badges use text and colour; badge styling never overrides red alert-source
+MAC links. Changing the role filter while running loads that role from all
+24-hour observations. While paused it filters only the already loaded data and
+says so; Refresh loads the selected role and resumes updates. Filters persist
+across periodic refresh and tab switching.
+
+### Devices API
+
+`GET /api/devices?limit=200&role=all` accepts limits 1–500 and role values `all`,
+`access_point`, `client`, `mixed`, `unknown`. Filtering happens **before** limiting
+results, so a role is not hidden just because other devices fill the first page.
+The response includes `window_hours`, `limit`, `role`, `has_more`, and `devices`.
+
+Each device includes `mac`, `role_code`, `role`, `evidence`, `evidence_counts`,
+`window_hours`, `observed_roles`, `ssids`, `bssids`, `channels`, `sensor_ids`,
+`first_seen`, `last_seen`, and `frame_count`. `observed_roles` preserves the raw
+source/destination/BSSID roles separately. Evidence counts distinguish beacons,
+probe responses, association/reassociation requests sent, and association/
+reassociation responses received. The dashboard reports when its 200-address
+limit is reached for the selected filter.
 
 ## Accessibility and animation
 

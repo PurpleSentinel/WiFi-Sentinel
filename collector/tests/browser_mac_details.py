@@ -40,6 +40,7 @@ class MacDetails(unittest.TestCase):
                             'additional_details': {'company': 'Vendor', 'country': 'GB'}}
                 else:
                     data = {'mac': mac, 'alert_sources': sources, 'observations': {
+                        'classification': {'role': 'Client / Host', 'role_code': 'client', 'evidence': ['Association requests sent: 20'], 'window_hours': 24},
                         'roles': ['Source'], 'ssids': [], 'bssids': [bssid], 'channels': [6],
                         'sensor_ids': ['c6'], 'first_seen': '2026-10-24', 'last_seen': '2026-10-24',
                         'frame_count': 20, 'alerts': alerts}}
@@ -51,7 +52,7 @@ class MacDetails(unittest.TestCase):
                     'channels': [], 'alerts?limit=200': alerts,
                     'frames?limit=100': [{'timestamp': '2026-10-24', 'subtype': 'deauth',
                         'sa': source, 'bssid': bssid, 'rssi': -40, 'channel': 6, 'protected': False, 'ssid': None}],
-                    'devices?limit=200': {'devices': [{'mac': source, 'role': 'Client / other address',
+                    'devices?limit=200': {'devices': [{'mac': source, 'role': 'Client / Host', 'role_code': 'client', 'evidence': ['Association requests sent: 20'],
                         'ssids': [], 'bssids': [bssid], 'channels': [6], 'last_seen': '2026-10-24',
                         'frame_count': 20, 'sensor_ids': ['c6']}], 'has_more': False},
                     'sensors': [],
@@ -80,6 +81,8 @@ class MacDetails(unittest.TestCase):
                 self.assertEqual(page.locator('#mac-vendor-details img').count(), 0)
                 self.assertIn('<img src=x onerror=alert(1)>', page.locator('#mac-vendor-details').inner_text())
                 self.assertIn('Unknown / not observed', page.locator('#mac-local-details').inner_text())
+                self.assertIn('Client / Host', page.locator('#mac-local-details').inner_text())
+                self.assertIn('Association requests sent: 20', page.locator('#mac-local-details').inner_text())
                 self.assertIn('alert-source', page.locator('#mac-address .mac-link').get_attribute('class'))
                 page.keyboard.press('Escape')
                 self.assertEqual(page.locator(':focus').get_attribute('data-mac'), source)
