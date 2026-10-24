@@ -1,12 +1,16 @@
 /*
  * WiFi Sentinel v0.1.0
- * Receive-only 802.11 management-frame telemetry for ESP32-C5.
+ * Receive-only 802.11 management-frame telemetry for ESP32-C5/C6.
  * No esp_wifi_80211_tx, association, injection, or radio jamming functions.
  *
- * Requires Espressif ESP-IDF v5.5.2+ targeting esp32c5.
+ * Requires Espressif ESP-IDF v5.5.2+ targeting esp32c5 or esp32c6.
  * Hardware validation on the specific eBeetle 2 PCB remains necessary.
  */
 #include <inttypes.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include "cJSON.h"
+#include "nvs.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -24,6 +28,10 @@
 #include "freertos/task.h"
 #include "nvs_flash.h"
 #include "sdkconfig.h"
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+#include "driver/usb_serial_jtag.h"
+#include "driver/usb_serial_jtag_vfs.h"
+#endif
 
 static const char *TAG = "wids";
 #define RX_QUEUE_DEPTH 192
@@ -48,6 +56,196 @@ static QueueHandle_t s_queue = NULL;
 static volatile uint32_t s_dropped = 0;
 static volatile uint32_t s_captured = 0;
 static uint32_t s_beacon_counter = 0;
+
+/* Runtime configuration is owned by export_task. Only sample_n is read by RX. */
+typedef struct {
+    uint32_t version;
+    char sensor_id[41];
+    int band;
+    int channel;
+    int sample_n;
+    int heartbeat_seconds;
+} runtime_config_t;
+
+static runtime_config_t s_config = {
+    .version = 1, .sensor_id = CONFIG_WIDS_SENSOR_ID,
+#ifdef CONFIG_WIDS_BAND_5G
+    .band = 5,
+#else
+    .band = 2,
+#endif
+    .channel = CONFIG_WIDS_CHANNEL, .sample_n = CONFIG_WIDS_BEACON_SAMPLE_N,
+    .heartbeat_seconds = CONFIG_WIDS_HEARTBEAT_SECONDS,
+};
+static nvs_handle_t s_config_nvs;
+
+static bool valid_identifier(const char *value)
+{
+    size_t length = strlen(value);
+    if (!length || length > 40) return false;
+    for (const char *p = value; *p; p++) {
+        if (!( (*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') ||
+               (*p >= '0' && *p <= '9') || *p == '_' || *p == '-' || *p == '.')) return false;
+    }
+    return true;
+}
+
+static bool allowed_channel(int band, int channel)
+{
+    if (band == 2) {
+        wifi_country_t country;
+        if (esp_wifi_get_country(&country) != ESP_OK) return false;
+        return channel >= country.schan && channel < country.schan + country.nchan && channel <= 14;
+    }
+#if CONFIG_SOC_WIFI_SUPPORT_5G
+    /* Conservative non-DFS subset; driver still enforces regulatory policy. */
+    if (band == 5) return channel == 36 || channel == 40 || channel == 44 || channel == 48;
+#endif
+    return false;
+}
+
+static bool valid_config(const runtime_config_t *config)
+{
+    return config->version == 1 && memchr(config->sensor_id, 0, sizeof(config->sensor_id)) &&
+        valid_identifier(config->sensor_id) && allowed_channel(config->band, config->channel) &&
+        config->sample_n >= 1 && config->sample_n <= 1000 &&
+        config->heartbeat_seconds >= 1 && config->heartbeat_seconds <= 300;
+}
+
+static esp_err_t tune(const runtime_config_t *config)
+{
+#if CONFIG_SOC_WIFI_SUPPORT_5G
+    esp_err_t err = esp_wifi_set_band_mode(config->band == 5 ? WIFI_BAND_MODE_5G_ONLY : WIFI_BAND_MODE_2G_ONLY);
+    if (err != ESP_OK) return err;
+#endif
+    return esp_wifi_set_channel(config->channel, WIFI_SECOND_CHAN_NONE);
+}
+
+static bool json_integer(const cJSON *obj, const char *name, int *value)
+{
+    const cJSON *item = cJSON_GetObjectItemCaseSensitive(obj, name);
+    if (!cJSON_IsNumber(item) || item->valuedouble != item->valueint) return false;
+    *value = item->valueint;
+    return true;
+}
+
+static void report_config(const char *id, const char *error)
+{
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddNumberToObject(root, "v", 1);
+    cJSON_AddStringToObject(root, "kind", "config_ack");
+    cJSON_AddStringToObject(root, "id", id);
+    cJSON_AddBoolToObject(root, "ok", error == NULL);
+    if (error) cJSON_AddStringToObject(root, "error", error);
+    cJSON *values = cJSON_AddObjectToObject(root, "config");
+    cJSON_AddStringToObject(values, "sensor_id", s_config.sensor_id);
+    cJSON_AddStringToObject(values, "band", s_config.band == 5 ? "5" : "2.4");
+    cJSON_AddNumberToObject(values, "channel", s_config.channel);
+    cJSON_AddNumberToObject(values, "beacon_sample_n", s_config.sample_n);
+    cJSON_AddNumberToObject(values, "heartbeat_seconds", s_config.heartbeat_seconds);
+    cJSON *caps = cJSON_AddObjectToObject(root, "capabilities");
+    cJSON_AddStringToObject(caps, "chip", CONFIG_IDF_TARGET);
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+    cJSON_AddStringToObject(caps, "console", "USB Serial/JTAG");
+#else
+    cJSON_AddStringToObject(caps, "console", "UART / build-time console");
+#endif
+    wifi_country_t country;
+    if (esp_wifi_get_country(&country) == ESP_OK) {
+        char code[4] = {0};
+        memcpy(code, country.cc, 3);
+        cJSON_AddStringToObject(caps, "country", code);
+    }
+    cJSON *bands = cJSON_AddArrayToObject(caps, "bands");
+    cJSON_AddItemToArray(bands, cJSON_CreateString("2.4"));
+    cJSON *channels = cJSON_AddObjectToObject(caps, "channels");
+    cJSON *two = cJSON_AddArrayToObject(channels, "2.4");
+    for (int i = 1; i <= 14; i++) if (allowed_channel(2, i)) cJSON_AddItemToArray(two, cJSON_CreateNumber(i));
+#if CONFIG_SOC_WIFI_SUPPORT_5G
+    cJSON_AddItemToArray(bands, cJSON_CreateString("5"));
+    cJSON *five = cJSON_AddArrayToObject(channels, "5");
+    for (int i = 36; i <= 48; i += 4) if (allowed_channel(5, i)) cJSON_AddItemToArray(five, cJSON_CreateNumber(i));
+#endif
+    char *line = cJSON_PrintUnformatted(root);
+    if (line) { printf("WIDS %s\n", line); fflush(stdout); cJSON_free(line); }
+    cJSON_Delete(root);
+}
+
+static void handle_command(const char *line)
+{
+    if (strncmp(line, "WIDS_CMD ", 9)) return;
+    cJSON *root = cJSON_Parse(line + 9);
+    if (!root) return;
+    const cJSON *id = cJSON_GetObjectItemCaseSensitive(root, "id");
+    const cJSON *action = cJSON_GetObjectItemCaseSensitive(root, "action");
+    int version;
+    if (!cJSON_IsString(id) || !valid_identifier(id->valuestring) ||
+        !cJSON_IsString(action) || !json_integer(root, "v", &version) || version != 1) {
+        cJSON_Delete(root); return;
+    }
+    const char *error = NULL;
+    if (!strcmp(action->valuestring, "set_config")) {
+        runtime_config_t next = s_config;
+        const cJSON *values = cJSON_GetObjectItemCaseSensitive(root, "settings");
+        const cJSON *sid = cJSON_GetObjectItemCaseSensitive(values, "sensor_id");
+        const cJSON *band = cJSON_GetObjectItemCaseSensitive(values, "band");
+        if (!cJSON_IsObject(values) || cJSON_GetArraySize(values) != 5 ||
+            !cJSON_IsString(sid) || !valid_identifier(sid->valuestring) || !cJSON_IsString(band) ||
+            (strcmp(band->valuestring, "2.4") && strcmp(band->valuestring, "5")) ||
+            !json_integer(values, "channel", &next.channel) ||
+            !json_integer(values, "beacon_sample_n", &next.sample_n) ||
+            !json_integer(values, "heartbeat_seconds", &next.heartbeat_seconds)) {
+            error = "Invalid sensor configuration";
+        } else {
+            strcpy(next.sensor_id, sid->valuestring);
+            next.band = !strcmp(band->valuestring, "5") ? 5 : 2;
+            if (!valid_config(&next)) error = "Unsupported band, channel or setting range";
+        }
+        if (!error) {
+            esp_err_t err = esp_wifi_set_promiscuous(false);
+            if (err == ESP_OK) err = tune(&next);
+            if (err == ESP_OK) err = nvs_set_blob(s_config_nvs, "config", &next, sizeof(next));
+            if (err == ESP_OK) err = nvs_commit(s_config_nvs);
+            if (err != ESP_OK) {
+                /* Restore both radio and pending NVS changes on failure. */
+                ESP_ERROR_CHECK(tune(&s_config));
+                ESP_ERROR_CHECK(nvs_set_blob(s_config_nvs, "config", &s_config, sizeof(s_config)));
+                ESP_ERROR_CHECK(nvs_commit(s_config_nvs));
+                error = esp_err_to_name(err);
+            } else {
+                xQueueReset(s_queue);
+                s_config.band = next.band;
+                s_config.channel = next.channel;
+                s_config.heartbeat_seconds = next.heartbeat_seconds;
+                strcpy(s_config.sensor_id, next.sensor_id);
+                __atomic_store_n(&s_config.sample_n, next.sample_n, __ATOMIC_RELAXED);
+            }
+            ESP_ERROR_CHECK(esp_wifi_set_promiscuous(true));
+        }
+    } else if (strcmp(action->valuestring, "get_config")) {
+        error = "Unknown command";
+    }
+    report_config(id->valuestring, error);
+    cJSON_Delete(root);
+}
+
+static void poll_commands(void)
+{
+    static char line[768];
+    static size_t used = 0;
+    static bool oversized = false;
+    char ch;
+    for (int budget = 0; budget < 1024 && read(STDIN_FILENO, &ch, 1) == 1; budget++) {
+        if (ch == '\n') {
+            line[used] = 0;
+            if (!oversized) handle_command(line);
+            used = 0; oversized = false;
+        } else if (ch != '\r' && !oversized) {
+            if (used < sizeof(line) - 1) line[used++] = ch;
+            else oversized = true;
+        }
+    }
+}
 
 static const char *subtype_name(uint8_t subtype)
 {
@@ -106,7 +304,7 @@ static void rx_callback(void *buffer, wifi_promiscuous_pkt_type_t type)
     if (!subtype_name(subtype)) return;
     if (subtype == 8 || subtype == 5) {
         s_beacon_counter++;
-        if (s_beacon_counter % CONFIG_WIDS_BEACON_SAMPLE_N) return;
+        if (s_beacon_counter % __atomic_load_n(&s_config.sample_n, __ATOMIC_RELAXED)) return;
     }
 
     rx_frame_t output = {0};
@@ -160,7 +358,7 @@ static void emit_mac(const uint8_t mac[6])
 static void report_frame(const rx_frame_t *frame)
 {
     printf("WIDS {\"v\":1,\"kind\":\"frame\",\"sensor_id\":");
-    json_string(CONFIG_WIDS_SENSOR_ID);
+    json_string(s_config.sensor_id);
     printf(",\"channel\":%u,\"subtype\":\"%s\",\"sa\":\"", frame->channel,
            subtype_name(frame->subtype));
     emit_mac(frame->addr2);
@@ -180,10 +378,10 @@ static void report_frame(const rx_frame_t *frame)
 static void report_heartbeat(void)
 {
     printf("WIDS {\"v\":1,\"kind\":\"heartbeat\",\"sensor_id\":");
-    json_string(CONFIG_WIDS_SENSOR_ID);
+    json_string(s_config.sensor_id);
     printf(",\"channel\":%d,\"uptime_ms\":%" PRIu32
            ",\"captured\":%" PRIu32 ",\"dropped\":%" PRIu32 "}\n",
-           CONFIG_WIDS_CHANNEL, (uint32_t)(esp_timer_get_time() / 1000),
+           s_config.channel, (uint32_t)(esp_timer_get_time() / 1000),
            __atomic_load_n(&s_captured, __ATOMIC_RELAXED),
            __atomic_load_n(&s_dropped, __ATOMIC_RELAXED));
     fflush(stdout);
@@ -194,11 +392,20 @@ static void export_task(void *context)
     (void)context;
     rx_frame_t frame;
     TickType_t last_heartbeat = xTaskGetTickCount();
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+    usb_serial_jtag_driver_config_t usb_config = {
+        .rx_buffer_size = 2048, .tx_buffer_size = 2048,
+    };
+    ESP_ERROR_CHECK(usb_serial_jtag_driver_install(&usb_config));
+    usb_serial_jtag_vfs_use_driver();
+#endif
+    fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
     for (;;) {
-        if (xQueueReceive(s_queue, &frame, pdMS_TO_TICKS(1000)) == pdTRUE) {
+        poll_commands();
+        if (xQueueReceive(s_queue, &frame, pdMS_TO_TICKS(50)) == pdTRUE) {
             report_frame(&frame);
         }
-        if (xTaskGetTickCount() - last_heartbeat >= pdMS_TO_TICKS(CONFIG_WIDS_HEARTBEAT_SECONDS * 1000)) {
+        if (xTaskGetTickCount() - last_heartbeat >= pdMS_TO_TICKS(s_config.heartbeat_seconds * 1000)) {
             report_heartbeat();
             last_heartbeat = xTaskGetTickCount();
         }
@@ -207,7 +414,7 @@ static void export_task(void *context)
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "WiFi Sentinel passive monitor - ESP32-C5");
+    ESP_LOGI(TAG, "WiFi Sentinel passive monitor - %s", CONFIG_IDF_TARGET);
     ESP_LOGI(TAG, "Configure sensor via idf.py menuconfig; no transmission of attack frames");
     s_queue = xQueueCreate(RX_QUEUE_DEPTH, sizeof(rx_frame_t));
     if (!s_queue) {
@@ -225,23 +432,18 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_wifi_set_promiscuous_filter(&filter));
     ESP_ERROR_CHECK(esp_wifi_set_promiscuous_rx_cb(rx_callback));
     ESP_ERROR_CHECK(esp_wifi_start());
-#ifdef CONFIG_WIDS_BAND_5G
-    ESP_ERROR_CHECK(esp_wifi_set_band_mode(WIFI_BAND_MODE_5G_ONLY));
-#else
-    ESP_ERROR_CHECK(esp_wifi_set_band_mode(WIFI_BAND_MODE_2G_ONLY));
-#endif
-    esp_err_t channel_status = esp_wifi_set_channel(CONFIG_WIDS_CHANNEL, WIFI_SECOND_CHAN_NONE);
-    if (channel_status != ESP_OK) {
-        ESP_LOGE(TAG, "Cannot tune channel %d (band/regulatory constraints?) error=%s",
-                 CONFIG_WIDS_CHANNEL, esp_err_to_name(channel_status));
-        ESP_ERROR_CHECK(channel_status);
-    }
+    ESP_ERROR_CHECK(nvs_open("wids", NVS_READWRITE, &s_config_nvs));
+    runtime_config_t saved;
+    size_t size = sizeof(saved);
+    if (nvs_get_blob(s_config_nvs, "config", &saved, &size) == ESP_OK &&
+        size == sizeof(saved) && valid_config(&saved)) s_config = saved;
+    ESP_ERROR_CHECK(tune(&s_config));
     ESP_ERROR_CHECK(esp_wifi_set_promiscuous(true));
-    if (strlen(CONFIG_WIDS_SENSOR_ID) > 40) {
+    if (!valid_identifier(s_config.sensor_id)) {
         ESP_LOGE(TAG, "Sensor ID must be <= 40 characters");
         abort();
     }
     BaseType_t created = xTaskCreate(export_task, "wids_uart", 4096, NULL, 4, NULL);
     if (created != pdPASS) abort();
-    ESP_LOGI(TAG, "Receiving on channel %d, reporting only management frames", CONFIG_WIDS_CHANNEL);
+    ESP_LOGI(TAG, "Receiving on channel %d, reporting only management frames", s_config.channel);
 }

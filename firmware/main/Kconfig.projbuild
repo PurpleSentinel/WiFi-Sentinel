@@ -12,12 +12,14 @@ menu "WiFi Sentinel sensor configuration"
             bool "2.4 GHz"
         config WIDS_BAND_5G
             bool "5 GHz"
+            depends on SOC_WIFI_SUPPORT_5G
     endchoice
 
     config WIDS_CHANNEL
         int "Fixed receive channel (legal for your regulatory region)"
         default 6
-        range 1 177
+        range 1 14 if !SOC_WIFI_SUPPORT_5G
+        range 1 177 if SOC_WIFI_SUPPORT_5G
         help
             2.4 GHz typical: 1, 6, 11. 5 GHz example: 36.
             Check the correct band and local regulatory permissions.

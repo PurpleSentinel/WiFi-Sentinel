@@ -22,6 +22,10 @@ sequenceDiagram
   Pi->>DB: Frame and alerts transaction
   Browser->>Pi: GET /api/*
   Pi->>Browser: Read-only JSON / HTML
+  Browser->>Pi: Authorized configuration request
+  Pi->>USB: WIDS_CMD settings with request ID
+  USB->>ESP: Validate, tune and persist sensor settings
+  ESP->>Pi: Configuration acknowledgement via USB
 ```
 
 ## Firmware components
@@ -40,7 +44,8 @@ Sampled beacons mean beacon frequency counts are **not** a reliable detection me
 - `engine.py` owns a single lock for deterministic ordering, detector, DB insert, periodic retention cleanup.
 - `detection.py` observes sliding windows keyed by sensor + BSSID + channel + category. Rules are detection heuristics; they do not authenticate transmitter identity.
 - `storage.py` uses SQLite WAL and a lock. No external brokers/database needed for a single sensor. Serialized writes simplify correctness for modest telemetry volume.
-- `webapp.py` provides read-only REST GET endpoints and serves one static offline-friendly HTML UI.
+- `webapp.py` serves dashboard data, a Status dialog, and key-protected configuration writes with same-origin checks.
+- `runtime.py` validates and atomically persists collector overrides; `sensor.py` coordinates USB commands and matching acknowledgements through the serial reader. See [configuration](CONFIGURATION.md).
 - `cli.py` provides `serve`, `demo`, `replay` workflows. Demo/replay write to SQLite, **not** RF.
 
 ## Design trade-offs

@@ -2,6 +2,40 @@
 
 ## What has been validated for this archive
 
+### ESP32-C6 bring-up — 2026-10-24
+
+- USB chip identification confirmed ESP32-C6 revision v0.0; this is not a C5.
+- Built and flashed with ESP-IDF v5.5.4 using the C6 target defaults and native
+  USB Serial/JTAG console. Application image size: 806,608 bytes.
+- A 35-second serial check received 17 sampled beacons and two heartbeats on
+  2.4 GHz channel 6; the latest heartbeat reported zero export queue drops.
+- The collector API on localhost port 8181 reported serial enabled, one live
+  `c6-sensor-01` sensor, and persisted beacon observations.
+- All 21 collector tests passed. FastAPI/Starlette emitted one test-client
+  deprecation warning.
+
+This is an initial receive/USB/collector sanity check, not a 24-hour acceptance
+test, independent RF comparison, or validation of the C5/5 GHz path.
+
+### Configuration and Status dialogs — 2026-10-24
+
+- Runtime configuration firmware built and flashed to the C6 with ESP-IDF
+  v5.5.4; the final application image is 836,752 bytes.
+- Live browser control switched the sensor from channel 6 to 11. Both its USB
+  acknowledgement and subsequent telemetry confirmed channel 11.
+- After resetting the sensor and restarting the collector, channel 11 was
+  retained from NVS and collector overrides were loaded from disk. Monitoring
+  was restored to channel 6 after verification.
+- All 29 collector tests passed, including configuration authorization, origin
+  checks, validation, persistence, acknowledgement failures, timeouts,
+  disconnects, and fragmented/oversized serial input. One existing dependency
+  deprecation warning remains.
+- Playwright Chromium checks passed for both dialogs, including multiple-sensor,
+  empty and failed-request states, paused opening, save authorization, keyboard
+  focus/Escape, and mobile layout. A live-browser save exercised the real USB
+  command and collector persistence paths as well.
+- Pi Wi-Fi/Ethernet configuration and the other USB ESP device were unchanged.
+
 - Python syntax and unit tests can run on host machine without physical hardware.
 - Test cases cover parsing, invalid input rejection, detection windows/cooldowns, allowlists, API and DB writes.
 - Synthetic demo is wholly offline and transmits **no RF frames**.

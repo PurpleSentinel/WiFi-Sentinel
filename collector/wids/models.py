@@ -80,6 +80,9 @@ def parse_wire_line(line: bytes | str) -> dict[str, Any] | None:
         return None
     if obj.get("kind") == "frame":
         Frame.from_json(obj)  # validated before it reaches persistence
+    elif obj.get("kind") == "config_ack":
+        if not isinstance(obj.get('id'), str) or len(obj['id']) > 40 or type(obj.get('ok')) is not bool:
+            return None
     elif obj.get("kind") == "heartbeat":
         if not SENSOR.fullmatch(str(obj.get("sensor_id", ""))):
             return None

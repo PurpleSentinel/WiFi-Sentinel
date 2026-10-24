@@ -41,9 +41,38 @@ One ASCII line per event, beginning exactly `WIDS `, followed by one compact JSO
 
 `dropped` counts events that failed to enqueue for USB export. This does *not* measure RF/driver packet losses. `captured` counts events selected for queueing (after beacon sampling). The dashboard displays dropped events from the most recent heartbeat.
 
-## Public local API
+## USB configuration commands
 
-Read-only:
+Runtime-capable firmware accepts bounded `WIDS_CMD ` JSON lines on the same USB
+serial connection. The collector's single reader owns both reads and writes.
+
+```json
+{"v":1,"id":"request-123","action":"get_config","settings":{}}
+```
+
+`set_config` takes a complete settings object. Example:
+
+```json
+{"v":1,"id":"request-124","action":"set_config","settings":{"sensor_id":"c6-sensor-01","band":"2.4","channel":11,"beacon_sample_n":20,"heartbeat_seconds":15}}
+```
+
+The firmware replies with a `WIDS ` line whose kind is `config_ack`, matching
+`id`, boolean `ok`, effective `config`, and `capabilities` (chip, console,
+regulatory country profile, bands and per-band channels). Failed commands include
+an `error` and retain the prior effective configuration. Success is acknowledged
+only after radio tuning and NVS commit. Requests have a maximum 767-byte body
+including the prefix; oversized lines are discarded through the next newline.
+Commands configure passive reception only, not RF transmissions.
+
+The collector validates patches, sends complete sensor settings, waits up to
+eight seconds for the matching acknowledgement, and queries configuration every
+five seconds to discover startup/reconnect state. It reports a timeout as an
+uncertain outcome rather than claiming success. Old telemetry-only firmware can
+continue reporting frames but cannot expose runtime controls.
+
+## Dashboard API
+
+Data reads and protected configuration writes:
 
 - `GET /` static dashboard
 - `GET /api/health` collector basic status
@@ -52,5 +81,10 @@ Read-only:
 - `GET /api/frames?limit=100` recent frame metadata, max 500
 - `GET /api/sensors` last-seen/queue-loss per sensor
 - `GET /api/channels` counts grouped by channel
+- `GET /api/configuration` current settings and sensor capabilities (no key)
+- `POST /api/configuration/collector` validated collector settings patch
+- `POST /api/configuration/sensor` acknowledged sensor settings patch
 
-API is **unauthenticated** by design and binds to loopback by default. It must not be internet-facing.
+Read endpoints are **unauthenticated** and bind to loopback by default. POST
+endpoints require a configuration key and matching request origin. See
+[Configuration](CONFIGURATION.md). Do not expose the service to the internet.

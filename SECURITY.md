@@ -16,6 +16,12 @@ WiFi Sentinel is a **passive security observation** prototype for wireless netwo
 
 ## Deployment policy
 
+The Configuration dialog adds authenticated write endpoints. A private
+configuration key (stored beside the database) and same-origin requests are
+required to change settings. Read endpoints remain unauthenticated. Use TLS or
+SSH forwarding when the network is not trusted; see
+[configuration access](docs/CONFIGURATION.md). The key does not encrypt HTTP.
+
 - Do not expose the HTTP listener to public interfaces. Bind to 127.0.0.1 and use an SSH tunnel for remote browsing, or deploy an authenticated TLS proxy after security review.
 - Restrict local OS read/write access to the sensor serial port, `.env`, SQLite DB and backup files.
 - Do not set `WIDS_HOST=0.0.0.0` without adding authentication, network isolation and transport security.
