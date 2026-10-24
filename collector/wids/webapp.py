@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 
 from .config import Settings
+from .device_roles import ROLE_LABELS
 from .engine import Engine, serial_loop
 from .runtime import LIMITS, LISTS, RESTART_FIELDS, configuration_key
 from .vendors import VendorLookup, normalize_mac
@@ -117,10 +118,12 @@ def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
         return core.store.rows("SELECT channel,COUNT(*) count FROM frames GROUP BY channel ORDER BY channel")
 
     @app.get('/api/devices')
-    def devices(limit: int = 200):
+    def devices(limit: int = 200, role: str = 'all'):
         if not 1 <= limit <= 500:
             raise HTTPException(400, 'limit must be 1..500')
-        return core.store.devices(limit)
+        if role != 'all' and role not in ROLE_LABELS:
+            raise HTTPException(400, 'role must be all, access_point, client, mixed or unknown')
+        return core.store.devices(limit, role)
 
     @app.get('/api/alert-sources')
     def alert_sources():

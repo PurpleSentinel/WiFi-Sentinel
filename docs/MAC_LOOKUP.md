@@ -1,7 +1,7 @@
 # MAC details and alert sources
 
 Click a MAC address in Overview, Alerts, Reporting, Devices, or a dialog to open
-its details. The popup shows retained local roles, directly advertised SSIDs,
+its details. The popup shows a 24-hour device classification and supporting evidence, separately from retained header roles, directly advertised SSIDs,
 BSSID contexts, channels, monitoring sensors, first/last seen, frame count and up
 to 100 associated alerts. Empty observations remain explicitly unknown.
 Configuration inputs remain editable; separate address lookup buttons appear

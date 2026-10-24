@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .detection import Alert
+from .device_roles import EVIDENCE_LABELS, ROLE_QUERY, classification
 from .models import Frame
 
 
@@ -116,7 +117,9 @@ class Store:
                             ORDER BY id DESC LIMIT 100''', (after, mac, mac))
         for alert in alerts:
             alert['association'] = 'Contributing source' if mac in (alert['source_macs'] or []) else 'BSSID context'
-        return {**observed, 'roles': roles, 'alerts': alerts}
+        recent = self._classified_devices(1, 'all', mac)
+        return {**observed, 'roles': roles, 'alerts': alerts,
+                'classification': {key: recent[0][key] for key in ('role_code', 'role', 'evidence', 'evidence_counts', 'window_hours')} if recent else classification()}
 
     def summary(self) -> dict:
         after = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat(timespec="seconds")
@@ -134,40 +137,25 @@ class Store:
             self.db.execute("DELETE FROM frames WHERE timestamp < ?", (before,))
             self.db.execute("DELETE FROM alerts WHERE timestamp < ?", (before,))
 
-    def devices(self, limit: int = 200) -> dict:
-        """Observed unicast addresses, not authenticated identities or associations."""
+    def _classified_devices(self, limit: int, role: str, mac: str | None = None) -> list[dict]:
         after = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat(timespec="seconds")
-        rows = self.rows("""
-            WITH recent AS (SELECT * FROM frames WHERE timestamp >= ?),
-            observations AS (
-                SELECT id,bssid AS mac,bssid,channel,timestamp,sensor_id,1 AS is_bssid,
-                    CASE WHEN subtype IN ('beacon','probe_resp') THEN ssid END AS ssid
-                FROM recent
-                UNION ALL
-                SELECT id,sa,bssid,channel,timestamp,sensor_id,0,NULL
-                FROM recent WHERE sa != bssid
-                UNION ALL
-                SELECT id,da,bssid,channel,timestamp,sensor_id,0,NULL
-                FROM recent WHERE da != bssid AND da != sa
-            )
-            SELECT mac,MAX(is_bssid) AS is_bssid,
-                json_group_array(DISTINCT ssid) AS ssids,
-                json_group_array(DISTINCT CASE
-                    WHEN bssid != '00:00:00:00:00:00'
-                    AND instr('02468ace',substr(bssid,2,1)) > 0 THEN bssid END) AS bssids,
-                json_group_array(DISTINCT channel) AS channels,
-                json_group_array(DISTINCT sensor_id) AS sensor_ids,
-                MIN(timestamp) AS first_seen,MAX(timestamp) AS last_seen,
-                COUNT(DISTINCT id) AS frame_count
-            FROM observations
-            WHERE mac != '00:00:00:00:00:00' AND instr('02468ace',substr(mac,2,1)) > 0
-            GROUP BY mac ORDER BY last_seen DESC,MAX(id) DESC,mac LIMIT ?
-        """, (after, limit + 1))
+        rows = self.rows(ROLE_QUERY, (after, mac, mac, mac, mac, role, role, mac, mac, limit + 1))
         for row in rows:
-            row['role'] = 'BSSID observed' if row.pop('is_bssid') else 'Client / other address'
+            evidence = classification(row)
+            row['observed_roles'] = [label for name, label in [('is_source', 'Source'),
+                ('is_destination', 'Destination'), ('is_bssid', 'BSSID')] if row.pop(name)]
+            row.pop('last_id')
+            for name in EVIDENCE_LABELS:
+                row.pop(name)
+            row.update(evidence)
             for name in ('ssids', 'bssids', 'channels', 'sensor_ids'):
                 row[name] = sorted(value for value in json.loads(row[name]) if value is not None and value != '')
-        return {'window_hours': 24, 'limit': limit, 'has_more': len(rows) > limit,
+        return rows
+
+    def devices(self, limit: int = 200, role: str = 'all') -> dict:
+        """Classify observed unicast roles by recent subtype/address evidence."""
+        rows = self._classified_devices(limit, role)
+        return {'window_hours': 24, 'limit': limit, 'role': role, 'has_more': len(rows) > limit,
                 'devices': rows[:limit]}
 
     def close(self) -> None:

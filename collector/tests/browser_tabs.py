@@ -54,7 +54,8 @@ class DashboardTabs(unittest.TestCase):
                 'rssi': -40, 'channel': 6, 'protected': False, 'ssid': 'Office'}],
             'devices?limit=200': {'window_hours': 24, 'limit': 200, 'has_more': False,
                 'devices': [] if self.empty else [{
-                    'mac': '02:11:22:33:44:55', 'role': 'BSSID observed',
+                    'mac': '02:11:22:33:44:55', 'role': 'Access Point', 'role_code': 'access_point',
+                    'evidence': ['Beacon advertisements sent: 12'],
                     'ssids': ['<img src=x onerror=alert(1)>'], 'bssids': ['02:11:22:33:44:55'],
                     'channels': [6], 'last_seen': '2026-10-24T14:00:00Z',
                     'frame_count': 12, 'sensor_ids': ['c6']}]},
@@ -62,7 +63,18 @@ class DashboardTabs(unittest.TestCase):
             'configuration': {'collector': {'window_seconds': 10},
                 'limits': {'window_seconds': [1, 3600]}, 'lists': [], 'restart_fields': [],
                 'sensor': {'connected': False, 'configuration': None}},
-        }[path]
+        }[path.split('&role=')[0]]
+        if path.startswith('devices?') and not self.empty:
+            base = data['devices'][0]
+            data['devices'] += [{**base, 'mac': mac, 'role': label, 'role_code': code, 'evidence': evidence, 'ssids': []}
+                for mac, label, code, evidence in [
+                    ('02:00:00:00:00:02', 'Client / Host', 'client', ['Association requests sent: 1']),
+                    ('02:00:00:00:00:03', 'Mixed (AP + Client)', 'mixed', ['Beacon advertisements sent: 1', 'Reassociation requests sent: 1']),
+                    ('02:00:00:00:00:04', 'Unknown', 'unknown', ['Insufficient subtype/address evidence in the last 24 hours'])]]
+            if '&role=' in path:
+                code = path.split('&role=')[1]
+                data['devices'] = [row for row in data['devices'] if row['role_code'] == code]
+                data['role'] = code
         route.fulfill(status=200, content_type='application/json', body=json.dumps(data))
 
     def select(self, name):
@@ -147,4 +159,32 @@ class DashboardTabs(unittest.TestCase):
         for name in ('Overview', 'Alerts', 'Reporting', 'Devices'):
             self.select(name)
             self.assertTrue(page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
+        self.assertEqual(self.errors, [])
+
+    def test_role_filter_evidence_and_paused_behavior(self):
+        page = self.page
+        self.select('Devices')
+        self.assertEqual(page.locator('#device-rows tr').count(), 4)
+        for code, label in [('access_point', 'Access Point'), ('client', 'Client / Host'),
+                            ('mixed', 'Mixed (AP + Client)'), ('unknown', 'Unknown')]:
+            page.locator('#device-role').select_option(code)
+            page.wait_for_function("document.querySelector('#panel-devices').getAttribute('aria-busy') === 'false'")
+            self.assertEqual(page.locator('#device-rows tr').count(), 1)
+            self.assertEqual(page.locator('#device-rows .role-badge').inner_text(), label)
+            self.assertIn('devices?limit=200&role=' + code, self.calls)
+            self.assertTrue(page.locator('#device-rows .role-evidence').inner_text())
+        page.get_by_role('button', name='Pause updates').click()
+        self.calls.clear()
+        page.locator('#device-role').select_option('client')
+        self.assertEqual(self.calls, [])
+        self.assertIn('filtering loaded observations only', page.locator('#devices-message').inner_text())
+        page.get_by_role('button', name='Refresh', exact=True).click()
+        page.wait_for_function("document.querySelector('#panel-devices').getAttribute('aria-busy') === 'false'")
+        self.assertEqual(page.locator('#device-rows .role-badge').inner_text(), 'Client / Host')
+        self.select('Overview')
+        self.select('Devices')
+        self.assertEqual(page.locator('#device-role').input_value(), 'client')
+        self.assertEqual(page.locator('#device-rows .role-badge').inner_text(), 'Client / Host')
+        page.set_viewport_size({'width': 390, 'height': 844})
+        self.assertTrue(page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
         self.assertEqual(self.errors, [])
