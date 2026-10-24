@@ -42,7 +42,20 @@ curl -s 'http://127.0.0.1:8181/api/alerts?limit=10'
 
 ## Retention
 
-Every collector startup and every 1000 accepted events triggers deletion of old frames and alerts. If no events arrive for days, existing data is not deleted until a restart or a new 1000-event checkpoint. Scheduled cleanup is a roadmap improvement. Sensor last-seen rows are not automatically deleted.
+Expired frames and alerts are deleted at collector startup, immediately when a
+retention setting is saved, and by a dedicated worker while `serve` is running.
+The worker waits **60 seconds between cleanup attempts**, independently of event
+counts, serial connectivity, dashboard requests or paused display updates. This
+also runs when no serial port is configured. Under normal operation, expiry is
+enforced within one scheduling interval plus cleanup/lock execution time.
+
+The startup log reports the interval. SQLite/filesystem failures are logged and
+retried on the next interval; investigate errors if cleanup cannot complete.
+Cleanup shares the ingestion/configuration lock and SQLite lock, so it uses the
+current retention policy and cannot race with a policy update. Shutdown wakes
+waiting workers and joins them before closing the database. Sensor registration
+and last-seen rows are not automatically deleted. CLI demo/replay operations
+retain startup cleanup; the recurring worker belongs to the running web service.
 
 ## Backup / incident preservation
 

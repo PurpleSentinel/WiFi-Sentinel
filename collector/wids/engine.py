@@ -1,5 +1,6 @@
 """One serialized ingestion pipeline for serial, demo and replay."""
 import logging
+import sqlite3
 import threading
 import time
 from dataclasses import replace
@@ -13,6 +14,7 @@ from .sensor import SensorControl
 from .storage import Store
 
 LOG = logging.getLogger(__name__)
+RETENTION_INTERVAL_SECONDS = 60
 
 
 class Engine:
@@ -47,8 +49,6 @@ class Engine:
             else:
                 return False
             self.processed += 1
-            if self.processed % 1000 == 0:
-                self.store.cleanup()
         return True
 
     def ingest_line(self, line: bytes | str) -> bool:
@@ -58,6 +58,19 @@ class Engine:
         if self.sensor.receive(obj):
             return True
         return self.ingest(obj)
+
+
+def retention_loop(engine: Engine, stop: threading.Event,
+                   interval: float = RETENTION_INTERVAL_SECONDS) -> None:
+    """Expire records without sensor traffic; stop.wait makes shutdown immediate."""
+    LOG.info('Scheduled retention cleanup every %s seconds', interval)
+    while not stop.wait(interval):
+        try:
+            # Serialize with ingestion and runtime retention-policy changes.
+            with engine.lock:
+                engine.store.cleanup()
+        except (sqlite3.Error, OSError):
+            LOG.exception('Scheduled retention cleanup failed; retrying on the next interval')
 
 
 def serial_loop(engine: Engine, stop: threading.Event) -> None:

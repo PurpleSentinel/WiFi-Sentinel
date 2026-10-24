@@ -41,7 +41,7 @@ Sampled beacons mean beacon frequency counts are **not** a reliable detection me
 ## Collector components
 
 - `models.py` validates wire framing/version/addresses/channel/rssi/subtypes.
-- `engine.py` owns a single lock for deterministic ordering, detector, DB insert, periodic retention cleanup.
+- `engine.py` owns a single lock for deterministic ordering, detector and DB inserts. A dedicated retention worker attempts cleanup every 60 seconds independently of serial traffic, using the same lock for policy consistency. The web lifespan stops and joins workers before closing SQLite.
 - `detection.py` observes sliding windows keyed by sensor + BSSID + channel + category. Rules are detection heuristics; they do not authenticate transmitter identity.
 - `storage.py` uses SQLite WAL and a lock. No external brokers/database needed for a single sensor. Serialized writes simplify correctness for modest telemetry volume.
 - `webapp.py` serves dashboard data, a Status dialog, and key-protected configuration writes with same-origin checks.

@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 
 from .config import Settings
 from .device_roles import ROLE_LABELS
-from .engine import Engine, serial_loop
+from .engine import Engine, retention_loop, serial_loop
 from .runtime import LIMITS, LISTS, RESTART_FIELDS, configuration_key
 from .vendors import VendorLookup, normalize_mac
 
@@ -23,20 +23,26 @@ def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
     key = configuration_key(core.settings)
     vendors = VendorLookup(core.settings.database.with_suffix('.vendors.sqlite3'))
     stop = threading.Event()
-    thread = None
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        nonlocal thread
-        if settings.serial_port:
-            thread = threading.Thread(target=serial_loop, args=(core, stop), daemon=True)
-            thread.start()
-        yield
-        stop.set()
-        if thread:
-            thread.join(timeout=3)
-        core.store.close()
-        vendors.close()
+        workers = []
+        try:
+            targets = [('wids-retention', retention_loop)]
+            if settings.serial_port:
+                targets.append(('wids-serial', serial_loop))
+            for name, target in targets:
+                thread = threading.Thread(name=name, target=target, args=(core, stop), daemon=True)
+                thread.start()
+                workers.append(thread)
+            yield
+        finally:
+            stop.set()
+            # Never close SQLite while a worker can still be using it.
+            for worker in workers:
+                worker.join()
+            core.store.close()
+            vendors.close()
 
     app = FastAPI(title="WiFi Sentinel", version="1.0.0", lifespan=lifespan, docs_url=None, redoc_url=None)
 

@@ -14,7 +14,7 @@
 - C6 native USB, channel switching and NVS persistence have been exercised. UART and C5 dual-band receive still need hardware validation.
 - Firmware compilation in CI (version-pinned ESP-IDF) and representative test fixtures.
 - Add explicit collection-lag metadata and loss counters to the dashboard.
-- Periodic retention cleanup timer and configured log rotation.
+- Configure log rotation. Retention cleanup now runs on a 60-second service timer, including while ingestion is idle.
 
 ## Phase 2
 
