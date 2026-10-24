@@ -38,7 +38,7 @@ def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
         core.store.close()
         vendors.close()
 
-    app = FastAPI(title="WiFi Sentinel", version="0.1.0", lifespan=lifespan, docs_url=None, redoc_url=None)
+    app = FastAPI(title="WiFi Sentinel", version="1.0.0", lifespan=lifespan, docs_url=None, redoc_url=None)
 
     @app.middleware('http')
     async def no_cache(request: Request, call_next):
