@@ -81,6 +81,8 @@ Data reads and protected configuration writes:
 - `GET /api/frames?limit=100` recent frame metadata, max 500
 - `GET /api/sensors` last-seen/queue-loss per sensor
 - `GET /api/channels` counts grouped by channel
+- `GET /api/devices?limit=200` observed unicast address summaries from the last
+  24 hours, max 500; see [device observation semantics](DASHBOARD.md)
 - `GET /api/configuration` current settings and sensor capabilities (no key)
 - `POST /api/configuration/collector` validated collector settings patch
 - `POST /api/configuration/sensor` acknowledged sensor settings patch

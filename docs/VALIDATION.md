@@ -40,6 +40,18 @@ test, independent RF comparison, or validation of the C5/5 GHz path.
 - Test cases cover parsing, invalid input rejection, detection windows/cooldowns, allowlists, API and DB writes.
 - Synthetic demo is wholly offline and transmits **no RF frames**.
 
+### Dashboard tabs and pulsing logo — software checks
+
+The tabbed dashboard change passed 32 collector tests and three Playwright
+Chromium browser checks. Coverage includes device aggregation, unknown SSIDs,
+group/zero-address exclusion, API limits, keyboard tab navigation, active-tab
+polling, pause/refresh behavior, filters/export, dialogs from every view,
+empty/error states, safe SSID rendering, mobile layout, and reduced-motion
+branding. These checks do not extend RF coverage or validate additional hardware.
+All four views also loaded successfully against the running LAN collector; the
+Devices view displayed 30 observed addresses during that check. Live reduced-motion
+rendering produced a static logo, with no browser JavaScript errors.
+
 ## What has NOT been validated
 
 - Compilation against a complete ESP-IDF toolchain, especially ESP32-C5-specific Wi-Fi band mode and RX metadata declarations.
