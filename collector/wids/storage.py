@@ -1,9 +1,10 @@
 """Single-process, thread-safe SQLite storage. No raw payloads or PCAPs."""
+import json
+import sqlite3
+import threading
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-import sqlite3
-import threading
 
 from .detection import Alert
 from .models import Frame
@@ -90,6 +91,42 @@ class Store:
         with self.lock, self.db:
             self.db.execute("DELETE FROM frames WHERE timestamp < ?", (before,))
             self.db.execute("DELETE FROM alerts WHERE timestamp < ?", (before,))
+
+    def devices(self, limit: int = 200) -> dict:
+        """Observed unicast addresses, not authenticated identities or associations."""
+        after = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat(timespec="seconds")
+        rows = self.rows("""
+            WITH recent AS (SELECT * FROM frames WHERE timestamp >= ?),
+            observations AS (
+                SELECT id,bssid AS mac,bssid,channel,timestamp,sensor_id,1 AS is_bssid,
+                    CASE WHEN subtype IN ('beacon','probe_resp') THEN ssid END AS ssid
+                FROM recent
+                UNION ALL
+                SELECT id,sa,bssid,channel,timestamp,sensor_id,0,NULL
+                FROM recent WHERE sa != bssid
+                UNION ALL
+                SELECT id,da,bssid,channel,timestamp,sensor_id,0,NULL
+                FROM recent WHERE da != bssid AND da != sa
+            )
+            SELECT mac,MAX(is_bssid) AS is_bssid,
+                json_group_array(DISTINCT ssid) AS ssids,
+                json_group_array(DISTINCT CASE
+                    WHEN bssid != '00:00:00:00:00:00'
+                    AND instr('02468ace',substr(bssid,2,1)) > 0 THEN bssid END) AS bssids,
+                json_group_array(DISTINCT channel) AS channels,
+                json_group_array(DISTINCT sensor_id) AS sensor_ids,
+                MIN(timestamp) AS first_seen,MAX(timestamp) AS last_seen,
+                COUNT(DISTINCT id) AS frame_count
+            FROM observations
+            WHERE mac != '00:00:00:00:00:00' AND instr('02468ace',substr(mac,2,1)) > 0
+            GROUP BY mac ORDER BY last_seen DESC,MAX(id) DESC,mac LIMIT ?
+        """, (after, limit + 1))
+        for row in rows:
+            row['role'] = 'BSSID observed' if row.pop('is_bssid') else 'Client / other address'
+            for name in ('ssids', 'bssids', 'channels', 'sensor_ids'):
+                row[name] = sorted(value for value in json.loads(row[name]) if value is not None and value != '')
+        return {'window_hours': 24, 'limit': limit, 'has_more': len(rows) > limit,
+                'devices': rows[:limit]}
 
     def close(self) -> None:
         with self.lock:

@@ -113,4 +113,10 @@ def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
     def channels():
         return core.store.rows("SELECT channel,COUNT(*) count FROM frames GROUP BY channel ORDER BY channel")
 
+    @app.get('/api/devices')
+    def devices(limit: int = 200):
+        if not 1 <= limit <= 500:
+            raise HTTPException(400, 'limit must be 1..500')
+        return core.store.devices(limit)
+
     return app

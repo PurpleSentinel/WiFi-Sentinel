@@ -116,6 +116,7 @@ Only monitor networks for which you have authority. 802.11 frame metadata contai
 
 ## Documentation
 
+- [Dashboard tabs, device observations and animation](docs/DASHBOARD.md)
 - [Dashboard Configuration and Status dialogs](docs/CONFIGURATION.md)
 
 - [Architecture and data flow](docs/ARCHITECTURE.md)
