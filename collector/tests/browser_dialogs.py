@@ -50,6 +50,8 @@ class DashboardDialogs(unittest.TestCase):
                     data = config
             elif path == 'configuration':
                 data = config
+            elif path == 'alert-sources':
+                data = {'macs': [], 'legacy_alerts_without_sources': 0}
             elif path == 'sensors':
                 status, data = (503, {'detail': 'Sensor data unavailable'}) if fail_status else (200, rows)
             else:

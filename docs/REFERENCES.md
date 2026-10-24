@@ -1,15 +1,39 @@
-# Upstream technical references (verified October 2026)
+# Hardware and technical references
 
-These are background references, not bundled SDK source.
+## Tested ESP32-C6 / Raspberry Pi 4 path
 
-1. **ESP-IDF C5 getting started (release/v5.5)**: https://docs.espressif.com/projects/esp-idf/en/release-v5.5/esp32c5/get-started/index.html
-2. **ESP32-C5 Wi-Fi promiscuous APIs**: https://docs.espressif.com/projects/esp-idf/en/v5.5/esp32c5/api-reference/network/esp_wifi.html
-3. **ESP32-C5 Wi-Fi driver guide, band mode and channel limits**: https://docs.espressif.com/projects/esp-idf/en/release-v5.5/esp32c5/api-guides/wifi.html
-4. **Official ESP-IDF compatibility**, C5 revision v1.0/v1.2 >= v5.5.2: https://github.com/espressif/esp-idf/blob/master/COMPATIBILITY.md
-5. **ESP32-C5 SoC support status**: https://developer.espressif.com/hardware/esp32c5/
-6. **ESP-IDF repository / install**: https://github.com/espressif/esp-idf
-7. **IEEE 802.11 protected management frames background**: https://www.wi-fi.org/discover-wi-fi/security
+- [ESP32-C6 datasheet](https://www.espressif.com/sites/default/files/documentation/esp32-c6_datasheet_en.pdf): C6 Wi-Fi is 2.4 GHz. Chipset features do not establish the commercial PCB model, antenna wiring or flash capacity of the attached board.
+- [ESP-IDF v5.5.4 C6 getting started](https://docs.espressif.com/projects/esp-idf/en/v5.5.4/esp32c6/get-started/index.html).
+- [ESP-IDF v5.5.4 C6 Wi-Fi API](https://docs.espressif.com/projects/esp-idf/en/v5.5.4/esp32c6/api-reference/network/esp_wifi.html).
+- [ESP-IDF repository](https://github.com/espressif/esp-idf).
+- [Raspberry Pi 4 Model B specifications](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/specifications/).
+- [Raspberry Pi computer documentation](https://www.raspberrypi.com/documentation/computers/).
 
-**Board qualification warning:** the exact product-name phrase "eBeetle 2 ESP32-C5 IoT Development Board" was not matched to an authoritative PCB reference/schematic during preparation. The firmware is deliberately designed around the verified ESP32-C5 SoC API and makes *no unverified board pinout claims*.
+Installation evidence is recorded in [Hardware](HARDWARE.md): the host's device
+tree reports Raspberry Pi 4 Model B Rev 1.2; the USB sensor was identified by
+esptool as ESP32-C6 revision v0.0 and exercised with ESP-IDF v5.5.4. The hostname
+`pi5` does not override the device-tree model. No authoritative board-level
+product/schematic has been established for the attached C6.
 
-Consult the board vendor before committing to a production BOM, particularly for USB console, PCB antenna and power.
+## Optional C5 path — separate and unvalidated
+
+- [C5 getting started](https://docs.espressif.com/projects/esp-idf/en/release-v5.5/esp32c5/get-started/index.html).
+- [C5 Wi-Fi driver guide](https://docs.espressif.com/projects/esp-idf/en/release-v5.5/esp32c5/api-guides/wifi.html).
+- [ESP-IDF chip/revision compatibility](https://github.com/espressif/esp-idf/blob/master/COMPATIBILITY.md).
+
+Earlier eBeetle 2 / C5 references described an unverified candidate, not the
+connected device. Qualify an actual C5 board, supported revision, USB console,
+antenna, power and regulatory channels independently before deploying it. C5
+capability must not be attributed to the C6.
+
+## Vendor registry data
+
+- [IEEE Registration Authority](https://standards.ieee.org/products-programs/regauth/) publishes MAC assignment registries.
+- [MACLookup JSON database and field definitions](https://maclookup.app/downloads/json-database) supplies the bundled public prefix snapshot.
+- [MACLookup API documentation](https://maclookup.app/api-v2/documentation) describes the additional prefix-only lookup fields and service limits.
+- [MACLookup terms](https://maclookup.app/terms-and-conditions) describe data use and attribution.
+
+The bundled MACLookup data is attributed to that provider, not represented as a
+direct IEEE download. IEEE downloads were unavailable to this build host. Public
+registry facts remain subject to the provider's terms rather than the project's
+MIT source-code license. No observed full MAC is sent to the enrichment service.

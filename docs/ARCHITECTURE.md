@@ -9,7 +9,7 @@ Create a cheap, reproducible, receive-only Wi-Fi IDS with independent RF sensors
 ```mermaid
 sequenceDiagram
   participant RF as 802.11 air
-  participant ESP as ESP32-C5 firmware
+  participant ESP as ESP32-C6 firmware
   participant USB as USB serial
   participant Pi as Python collector
   participant DB as SQLite
@@ -31,7 +31,7 @@ sequenceDiagram
 ## Firmware components
 
 1. `app_main` initializes NVS/event loop/Wi-Fi in STA receive mode without connecting.
-2. `esp_wifi_set_band_mode` selects the configured 2.4 or 5 GHz receive band.
+2. C6 captures 2.4 GHz only. The optional C5 path uses `esp_wifi_set_band_mode` for 2.4/5 GHz; C5 hardware remains unvalidated.
 3. `esp_wifi_set_channel` tunes a fixed primary channel (requires regulatory/hardware validation).
 4. A promiscuous management-frame callback checks subtype, copies key header fields, optionally extracts a beacon/probe SSID and queues a small fixed struct. No logging or blocking in RX callback.
 5. FreeRTOS export task serializes frames to a versioned ASCII `WIDS ` + JSON line protocol. A periodic heartbeat exposes queue drops. `WIFI_PKT_DATA` and `WIFI_PKT_CTRL` are not captured or exported.

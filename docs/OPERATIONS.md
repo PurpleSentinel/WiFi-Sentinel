@@ -1,5 +1,7 @@
 # Operations runbook
 
+The tested deployment is a Raspberry Pi 4 with a USB ESP32-C6. Use its verified by-ID path; another ESP currently occupies `/dev/ttyACM0`. See [Hardware](HARDWARE.md).
+
 ## Start/stop
 
 ```bash
@@ -26,12 +28,12 @@ curl -s 'http://127.0.0.1:8181/api/alerts?limit=10'
 | Symptom | Checks |
 |---|---|
 | `idf.py: command not found` | Source ESP-IDF `export.sh`, confirm correct virtual env/toolchain |
-| Unknown target `esp32c5` | ESP-IDF too old; use v5.5.2+ |
+| Unknown target `esp32c6` | ESP-IDF too old; use v5.5.2+ |
 | Flash port not found | Check actual PCB USB data path/cable, `lsusb`, `dmesg`, `/dev/serial/by-id` |
 | Permission denied on `/dev/tty*` | User group and active session; stop any other serial terminal |
 | No `WIDS` lines | Wrong console selected, firmware not flashed, capture quiet; heartbeat should still appear |
 | Only heartbeat but no frames | Wrong channel/band, RF placement/antenna, receive configuration; reduce beacon sampling temporarily |
-| Frame channel 0 or unexpected | Verify ESP-IDF promiscuous RX metadata on the actual C5 revision |
+| Frame channel 0 or unexpected | Verify ESP-IDF promiscuous RX metadata on the actual C6 revision (or separately qualified C5) |
 | `dropped` increasing | Reduce beacon telemetry, shorten USB path/avoid overloaded Pi, check host logs |
 | All rules quiet while frames arrive | Threshold too high, wrong BSSID filters, no relevant subtype |
 | Many rogue-SSID alerts | Complete list of legitimate multi-BSSID APs and extenders/mesh nodes |
@@ -52,4 +54,4 @@ Every collector startup and every 1000 accepted events triggers deletion of old 
 
 ## Updating
 
-Back up SQLite, check `git diff` and release notes, run Python tests and repeat firmware smoke tests for changed IDF versions. Avoid auto-upgrading firmware without a verified rollback process. Database schema has no migration framework yet; check schema compatibility before modifying.
+Back up SQLite, check `git diff` and release notes, run Python tests and repeat firmware smoke tests for changed IDF versions. Avoid auto-upgrading firmware without a verified rollback process. There is no general migration framework; this release adds the nullable alert source-identity column compatibly on startup. Legacy alert sources remain unknown. See [MAC details](MAC_LOOKUP.md).

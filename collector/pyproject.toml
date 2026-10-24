@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "wifi-sentinel"
 version = "0.1.0"
-description = "Passive ESP32-C5 Wi-Fi management-frame IDS collector and dashboard"
+description = "Passive ESP32-C6/C5 Wi-Fi management-frame IDS collector and dashboard"
 requires-python = ">=3.10"
 dependencies = [
   "fastapi>=0.115,<1",
@@ -23,7 +23,7 @@ wifi-sentinel = "wids.cli:main"
 packages = ["wids"]
 
 [tool.setuptools.package-data]
-wids = ["static/*.html"]
+wids = ["static/*.html", "data/*.gz", "data/*.json", "data/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,4 +1,6 @@
-# Raspberry Pi 5 collector deployment
+# Raspberry Pi 4 collector deployment
+
+The tested host reports **Raspberry Pi 4 Model B Rev 1.2** in `/proc/device-tree/model`; its hostname `pi5` is not its model. The attached monitoring sensor is an ESP32-C6 using USB Serial/JTAG and 2.4 GHz only. See [installation identifiers](HARDWARE.md).
 
 Recommended OS: current Raspberry Pi OS **64-bit Lite** for a headless service, or desktop if you prefer to inspect locally. The same Python package runs on Fedora. Keep Pi OS patched and physically secure.
 
@@ -34,7 +36,7 @@ ssh -L 8181:127.0.0.1:8181 pi@<pi-hostname-or-ip>
 
 Then browse `http://127.0.0.1:8181` on your workstation. Alternatively install an authenticated reverse proxy with TLS; **do not** set `WIDS_HOST=0.0.0.0` on an untrusted network because the dashboard currently has no login system.
 
-## 2. Connect the sensor
+## 2. Connect the C6 sensor
 
 Use a USB data cable, a stable Pi power supply and a powered hub if necessary:
 
@@ -44,6 +46,8 @@ ls -l /dev/serial/by-id/
 ls -l /dev/ttyACM* /dev/ttyUSB* 2>/dev/null
 id -nG
 ```
+
+Match the sensor USB serial, not just `/dev/ttyACM1`: that enumeration can change. A separate ESP device currently uses `/dev/ttyACM0`; leave it to its existing application. Do not alter Pi Wi-Fi settings to receive USB telemetry.
 
 For serial permissions, add your user to the relevant device group (often `dialout`) and sign out/in. Do not run collector as root.
 
@@ -58,7 +62,7 @@ If only boot text appears but no `WIDS` telemetry, inspect ESP-IDF console selec
 ## 3. Configure thresholds and allowlists
 
 ```bash
-cp ../../config/collector.env.example .env
+cp ../config/collector.env.example .env
 $EDITOR .env
 set -a
 source .env
@@ -74,7 +78,7 @@ Edit the service's `EnvironmentFile`, `WorkingDirectory` and `ExecStart` for whe
 
 ```bash
 mkdir -p ~/.config/systemd/user
-cp ../../systemd/wifi-sentinel.service ~/.config/systemd/user/
+cp ../systemd/wifi-sentinel.service ~/.config/systemd/user/
 # Modify paths and environment file location before enabling:
 $EDITOR ~/.config/systemd/user/wifi-sentinel.service
 systemctl --user daemon-reload

@@ -37,4 +37,9 @@ Open a private security advisory in your own GitHub fork/repository or contact t
 
 ## Dependencies and supply chain
 
+Vendor lookup uses an attributed local prefix snapshot plus bounded, cached
+MACLookup requests containing only a 24-bit vendor prefix. No observed full MAC,
+SSID or alert is uploaded. Local/administered addresses are not queried as
+hardware-vendor identities. See [lookup privacy and limitations](docs/MAC_LOOKUP.md).
+
 The Python package uses broad compatible semver ranges rather than a lockfile in this prototype. For deployment, lock vetted dependency versions, record SHA256 hashes, enable dependabot/renovate only with code review, and scan SBOMs. Firmware toolchain needs installation from official Espressif channels. GitHub Actions checks Python behavior only, not firmware binary compilation.

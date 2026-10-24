@@ -43,6 +43,7 @@ class DashboardTabs(unittest.TestCase):
                   for severity in ('high', 'medium')]
         data = {
             'health': {'serial_enabled': True},
+            'alert-sources': {'macs': [], 'legacy_alerts_without_sources': 0},
             'summary': {'frames_24h': 12, 'alerts_24h': 2, 'sensors': 1,
                         'by_subtype': [{'subtype': 'beacon', 'count': 12}]},
             'channels': [{'channel': 6, 'count': 12}],

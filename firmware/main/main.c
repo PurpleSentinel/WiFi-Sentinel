@@ -4,7 +4,7 @@
  * No esp_wifi_80211_tx, association, injection, or radio jamming functions.
  *
  * Requires Espressif ESP-IDF v5.5.2+ targeting esp32c5 or esp32c6.
- * Hardware validation on the specific eBeetle 2 PCB remains necessary.
+ * C6 native USB bring-up is documented; exact PCB identity remains unknown.
  */
 #include <inttypes.h>
 #include <fcntl.h>

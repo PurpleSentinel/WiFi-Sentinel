@@ -2,15 +2,16 @@
 
 ## Phase 0 (included)
 
-- Receive-only ESP-IDF 802.11 management metadata firmware for C5.
+- Receive-only ESP-IDF 802.11 management metadata firmware tested on C6; optional C5 path remains unvalidated.
 - Queue bounded event export over USB serial with heartbeat/drops.
 - Python SQLite/FastAPI collector with v1 schema validation.
 - Threshold rules, known-SSID/BSSID heuristic, tests, offline demo and dashboard.
 
 ## Phase 1 (highest priority)
 
-- Hardware bring-up on exact eBeetle 2 PCB and C5 ESP-IDF patch version.
-- Confirm native USB / UART console, dual-band RX, channel behaviour, power/antenna.
+- Establish the deployed C6 board product/PCB, antenna, power and flash details; complete longer RF validation.
+- Separately qualify an actual C5 board before claiming tested 5 GHz support.
+- C6 native USB, channel switching and NVS persistence have been exercised. UART and C5 dual-band receive still need hardware validation.
 - Firmware compilation in CI (version-pinned ESP-IDF) and representative test fixtures.
 - Add explicit collection-lag metadata and loss counters to the dashboard.
 - Periodic retention cleanup timer and configured log rotation.

@@ -1,37 +1,68 @@
-# Hardware / bill of materials
+# Hardware and bill of materials
+
+## Tested installation (2026-10-24)
+
+| Component | Evidence / state |
+|---|---|
+| Collector | **Raspberry Pi 4 Model B Rev 1.2**, read from `/proc/device-tree/model` |
+| Hostname | `pi5`; a hostname is not a hardware model |
+| Monitoring chip | **ESP32-C6 (QFN40), revision v0.0**, identified by esptool during bring-up |
+| Sensor Wi-Fi | **2.4 GHz only**, one receive channel at a time; deployed on channel 6 |
+| USB transport | Native Espressif USB Serial/JTAG, VID:PID `303a:1001` |
+| Tested toolchain | ESP-IDF **v5.5.4**, target `esp32c6` |
+| Tested functions | Build/flash, sampled beacons and heartbeat, USB collector ingestion, runtime channel switching and NVS persistence |
+| Board product/PCB revision | Unknown; the USB/chip identifiers do not establish a commercial board model |
+| Antenna/connector/pinout/flash capacity | Not independently established; do not infer PCB features from chipset capabilities or the build's flash-size setting |
+
+This sensor has not been identified as an eBeetle 2 or an ESP32-C5 board.
+The C6 cannot monitor 5 GHz or 6 GHz. The Pi's own Wi-Fi is separate from the
+USB sensor and is not reconfigured by the collector.
+
+### Installation-specific USB identifiers
+
+The monitoring sensor currently enumerates as `/dev/ttyACM1`, with USB serial
+`40:4C:CA:4D:6F:E4`. Its stable path is:
+
+```text
+/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_40:4C:CA:4D:6F:E4-if00
+```
+
+A different ESP device currently occupies `/dev/ttyACM0`. Never open or flash it
+for this project. Enumeration numbers can change after reboot/reconnection;
+match the USB serial and prefer the by-ID path. These identifiers describe this
+installation, not values to copy onto another host without checking its devices.
 
 ## Core bill of materials
 
-| Item | Quantity | Required | Comments |
-|---|---:|---|---|
-| eBeetle 2 ESP32-C5 IoT Development Board | 1 per channel | Yes | Board identity/console pinout/antenna **must be confirmed against vendor PCB** |
-| USB data-capable cable matching the PCB | 1 | Yes | Not charge-only |
-| Fedora development computer | 1 | For builds | ESP-IDF toolchain + flash/programming access |
-| Raspberry Pi 5 or other Linux host | 1 | Optional | Store, correlate, dashboard; can run on Fedora instead |
-| Pi 5 adequate power supply + microSD/SSD | 1 | If Pi used | Use official/quality power and a reliable disk |
-| Powered USB hub | Optional | For >1 sensor | Prevent low-power disconnects |
-| RF-appropriate enclosure | Optional | For permanent use | Avoid metal shielding/antenna detuning |
-| Known-good 5 GHz-capable antenna | Verify | PCB dependent | Never assume 2.4-only antenna adequate for 5 GHz |
+| Item | Quantity | Notes |
+|---|---:|---|
+| ESP32-C6 development board exposing native USB Serial/JTAG | One per monitored channel | Tested chip family; establish exact board product and antenna before buying replacements |
+| USB data cable matching the actual board connector | One per sensor | Charge-only cables do not carry telemetry |
+| Raspberry Pi 4 or compatible Linux collector host | One | Fedora can also run the collector; the Pi 4 hosts this tested installation |
+| Appropriate Pi supply and reliable microSD/SSD | One | Pi 4 official specification lists 5 V / 3 A via USB-C; check the actual supply and combined USB load |
+| Powered USB hub | Optional | Useful when peripheral power demand exceeds the host's available USB power |
+| RF-appropriate enclosure | Optional | Avoid shielding or detuning the antenna |
 
-No wireless packet transmission from the application, level shifters or external circuits are necessary. The specific eBeetle 2 USB connector, module antenna, boot/reset buttons, flash size and schematic **could not be independently established** from authoritative product documentation when preparing this repository. Consequently the project **does not invent pin assignments**.
+No extra GPIO circuits or level shifters are required by this application.
+Consult the exact board's vendor documentation before making antenna, GPIO,
+boot-button, or power assumptions. See [official references](REFERENCES.md).
 
-## Important physical questions to answer on receipt
+## Optional ESP32-C5 path — unvalidated hardware
 
-1. Is the installed chip an ESP32-C5 production revision supported by IDF v5.5.2+?
-2. Does it expose native USB Serial/JTAG or an external USB-to-UART interface? Which VID/PID and Linux `/dev/serial/by-id/` path?
-3. Does flashing require a BOOT/RESET button combination?
-4. Is the onboard antenna approved/performs adequately at **both** 2.4 and 5 GHz? If a connector is present, confirm antenna type and RF path before attachment.
-5. Are there unusual boot straps/USB bridges/watchdogs that constrain continuous operation?
-6. Which 5 GHz channels are permitted by country/region and actually supported by this SKU?
+The source retains an `esp32c5` target and band selection for the C5's single
+2.4/5 GHz radio. This is a separate, unvalidated path: it does not add 5 GHz to
+this installation's C6. Earlier references to an eBeetle 2 C5 board were an
+unverified candidate, not an identification of the deployed board.
 
-## 2.4 vs 5 GHz
+Qualify the exact C5 board, supported chip revision/toolchain, USB console,
+antenna for both bands, power, and permitted channels before using that path.
+The runtime UI offers a conservative non-DFS 5 GHz subset on capable targets;
+the driver still enforces its regulatory constraints. No 6 GHz support is claimed.
 
-ESP32-C5 uses a single dual-band Wi-Fi radio. `WIFI_BAND_MODE_AUTO` does **not** create two concurrent sniffers. The default config is channel 6 on 2.4 GHz. For 5 GHz select the 5G Kconfig option and change the channel to an authorized locally supported channel (e.g. 36 where legal). Some channels require DFS and other rules; do not assume every channel in the Kconfig numeric range is available.
+## Monitoring placement and coverage
 
-## Monitoring placement
-
-Passive reception quality depends on distance, orientation, walls, competing transmitters, and antenna efficiency. Put the receiver where it can hear the legitimate AP and nearby client devices. A capture rate near zero may reflect placement or antenna issues, not an absence of attacks.
-
-## Better continuous coverage
-
-With two channels in use, use **two sensors**, each fixed to one channel. More sensors can support different channels and physical locations, but live multi-port aggregation is not yet wired into a single collector process (see architecture and roadmap).
+Reception depends on distance, orientation, walls, traffic and antenna quality.
+Low frame counts do not prove that no activity occurred. One fixed-channel
+sensor cannot hear every channel; two sensors fixed to different channels give
+more continuous coverage. Live multi-port fan-in within one collector process
+remains a roadmap item. See [validation limits](VALIDATION.md).

@@ -3,10 +3,10 @@
 Rates are counts of observed frames, *not* uniquely authenticated users or
 proof of an attack. A single-radio sensor may miss frames.
 """
+import time
 from collections import Counter, defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
-import time
 
 from .config import Settings
 from .models import Frame
@@ -22,6 +22,7 @@ class Alert:
     channel: int
     frame_count: int
     details: str
+    source_macs: tuple[str, ...] | None = None
 
 
 class Detector:
@@ -37,13 +38,14 @@ class Detector:
         alerts: list[Alert] = []
         stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
-        def make(rule: str, severity: str, count: int, detail: str) -> None:
+        def make(rule: str, severity: str, count: int, detail: str,
+                 source_macs: tuple[str, ...]) -> None:
             key = (frame.sensor_id, frame.bssid, frame.channel, rule)
             if t - self.last_alert.get(key, float("-inf")) < self.settings.cooldown_seconds:
                 return
             self.last_alert[key] = t
             alerts.append(Alert(stamp, frame.sensor_id, rule, severity, frame.bssid,
-                                frame.channel, count, detail))
+                                frame.channel, count, detail, source_macs))
 
         # SSID allowlisting does not depend on the monitored BSSID filter.
         if frame.subtype in {"beacon", "probe_resp"} and frame.ssid:
@@ -53,7 +55,8 @@ class Detector:
                 if (frame.ssid.lower() in self.settings.protected_ssids
                         and frame.bssid not in self.settings.trusted_bssids):
                     make("protected_ssid_untrusted_bssid", "high", 1,
-                         f"SSID {frame.ssid!r} advertised by non-allowlisted BSSID; investigate, not proof of evil twin")
+                         f"SSID {frame.ssid!r} advertised by non-allowlisted BSSID; investigate, not proof of evil twin",
+                         (frame.sa,))
 
         if self.settings.monitored_bssids and frame.bssid not in self.settings.monitored_bssids:
             return alerts
@@ -70,14 +73,16 @@ class Detector:
             if count >= threshold:
                 sources = len(Counter(sa for _, sa in self.recent[key]))
                 make(f"{frame.subtype}_flood", severity, count,
-                     f"Possible {detail}: {count} frames in {self.settings.window_seconds}s, {sources} source MAC(s)")
+                     f"Possible {detail}: {count} frames in {self.settings.window_seconds}s, {sources} source MAC(s)",
+                     tuple(sorted({sa for _, sa in self.recent[key]})))
 
         if frame.subtype in {"auth", "assoc_resp", "reassoc_resp"} and frame.status_code not in (None, 0):
             key = (frame.sensor_id, frame.bssid, frame.channel, "failed_auth")
             count = self._append(key, t, frame.sa)
             if count >= self.settings.failed_auth_threshold:
                 make("failed_auth_burst", "medium", count,
-                     f"{count} unsuccessful authentication/association responses; not proof of password guessing")
+                     f"{count} unsuccessful authentication/association responses; not proof of password guessing",
+                     tuple(sorted({sa for _, sa in self.recent[key]})))
         if now is None and t - self._last_prune > 60:
             self._prune(t)
             self._last_prune = t
