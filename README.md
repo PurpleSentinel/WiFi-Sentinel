@@ -49,13 +49,16 @@ python -m pytest -q tests
 
 ## Hardware steps
 
+ESP32-C6 boards can also run the sensor on **2.4 GHz only**. See the
+[C6 build instructions](firmware/README.md) for native USB Serial/JTAG defaults.
+
 1. Confirm the exact **eBeetle 2 ESP32-C5 board**, console interface and external/internal antenna. The *ESP32-C5 chipset* features are confirmed; the PCB implementation remains a verification item.
 2. Install ESP-IDF v5.5.2+ (recommend v5.5.4 patch series) and select `esp32c5`.
 3. `cd firmware && idf.py set-target esp32c5 && idf.py menuconfig`.
 4. Choose a *legal* fixed 2.4 GHz or 5 GHz channel, sensor ID, console output, and beacon sample factor.
 5. `idf.py build && idf.py -p /dev/ttyACM0 flash monitor` (port is an **example**; find yours).
 6. Verify the `WIDS` heartbeat prefix and sampled beacons without the collector before connecting to the Pi.
-7. On the Pi/Fedora machine run the collector with `WIDS_SERIAL_PORT=/dev/serial/by-id/...` (read-only USB receiving).
+7. On the Pi/Fedora machine run the collector with `WIDS_SERIAL_PORT=/dev/serial/by-id/...` (USB telemetry and sensor configuration).
 
 See **[Firmware](firmware/README.md)**, **[Fedora setup](docs/FEDORA_SETUP.md)**, **[Pi setup](docs/RASPBERRY_PI.md)** and **[Validation](docs/VALIDATION.md)**.
 
@@ -69,7 +72,7 @@ flowchart TD
   READ --> VALIDATE[Protocol validation]
   VALIDATE --> DETECT[Sliding-window IDS rules]
   DETECT --> DB[(SQLite metadata + alerts)]
-  DB --> API[FastAPI read-only REST API]
+  DB --> API[FastAPI dashboard API]
   API --> UI[Vanilla JS local dashboard]
 ```
 
@@ -112,6 +115,8 @@ All defaults are tunable environment variables, with 60-second repeat-alert cool
 Only monitor networks for which you have authority. 802.11 frame metadata contains MAC addresses and SSIDs and may be personal information. Retain only what you need, secure the Pi filesystem, and avoid sharing raw logs publicly. SQLite data and alerts expire after 7 days by default; attached sensor identity and last-seen information persists until removed. **The dashboard has no authentication** and intentionally binds to `127.0.0.1` unless explicitly changed. Use SSH forwarding or a properly protected reverse proxy for remote access. See [Security](SECURITY.md).
 
 ## Documentation
+
+- [Dashboard Configuration and Status dialogs](docs/CONFIGURATION.md)
 
 - [Architecture and data flow](docs/ARCHITECTURE.md)
 - [BOM, eBeetle 2 hardware unknowns and scaling](docs/HARDWARE.md)

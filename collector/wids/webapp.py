@@ -1,20 +1,24 @@
-"""Local-only dashboard API; do not expose to the internet without auth/TLS."""
-from contextlib import asynccontextmanager
-from pathlib import Path
+"""Dashboard data and key-protected settings; use a trusted LAN or TLS proxy."""
+import secrets
 import threading
+from contextlib import asynccontextmanager
+from dataclasses import asdict
+from pathlib import Path
+from urllib.parse import urlsplit
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 
 from .config import Settings
 from .engine import Engine, serial_loop
-
+from .runtime import LIMITS, LISTS, RESTART_FIELDS, configuration_key
 
 WEB_ROOT = Path(__file__).resolve().parent / "static"
 
 
 def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
     core = engine or Engine(settings)
+    key = configuration_key(core.settings)
     stop = threading.Event()
     thread = None
 
@@ -31,6 +35,51 @@ def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
         core.store.close()
 
     app = FastAPI(title="WiFi Sentinel", version="0.1.0", lifespan=lifespan, docs_url=None, redoc_url=None)
+
+    @app.middleware('http')
+    async def no_cache(request: Request, call_next):
+        response = await call_next(request)
+        response.headers['Cache-Control'] = 'no-store'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['Content-Security-Policy'] = "frame-ancestors 'none'"
+        return response
+
+    def authorize(request: Request):
+        if not secrets.compare_digest(request.headers.get('X-Configuration-Key', '').encode(), key.encode()):
+            raise HTTPException(403, 'A valid configuration key is required')
+        origin = request.headers.get('origin', '')
+        try:
+            parsed = urlsplit(origin)
+        except ValueError as exc:
+            raise HTTPException(403, 'Invalid request origin') from exc
+        if parsed.scheme not in ('http', 'https') or parsed.netloc != request.headers.get('host') or parsed.scheme != request.url.scheme:
+            raise HTTPException(403, 'Configuration changes require a same-origin request')
+
+    @app.get('/api/configuration')
+    def configuration():
+        values = asdict(core.settings)
+        values['database'] = str(values['database'])
+        return {'collector': values, 'limits': LIMITS, 'lists': LISTS,
+                'restart_fields': RESTART_FIELDS, 'sensor': core.sensor.snapshot()}
+
+    @app.post('/api/configuration/{scope}')
+    def configure(scope: str, values: dict, request: Request):
+        authorize(request)
+        try:
+            if scope == 'collector':
+                core.configure(values)
+                return configuration()
+            if scope == 'sensor':
+                return core.sensor.apply(values)
+            raise HTTPException(404, 'Unknown configuration scope')
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        except ConnectionError as exc:
+            raise HTTPException(503, str(exc)) from exc
+        except TimeoutError as exc:
+            raise HTTPException(504, str(exc)) from exc
+        except OSError as exc:
+            raise HTTPException(500, 'Could not persist configuration; check collector logs and file permissions') from exc
 
     @app.get("/")
     def index():
