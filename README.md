@@ -38,7 +38,7 @@ wifi-sentinel demo
 wifi-sentinel serve
 ```
 
-Open **http://127.0.0.1:8080**. The synthetic dataset exercises authentication,
+Open **http://127.0.0.1:8181**. The synthetic dataset exercises authentication,
 deauthentication, disassociation and unsuccessful authentication-response rules.
 
 Run tests:
