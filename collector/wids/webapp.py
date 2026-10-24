@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse
 from .config import Settings
 from .engine import Engine, serial_loop
 from .runtime import LIMITS, LISTS, RESTART_FIELDS, configuration_key
+from .vendors import VendorLookup, normalize_mac
 
 WEB_ROOT = Path(__file__).resolve().parent / "static"
 
@@ -19,6 +20,7 @@ WEB_ROOT = Path(__file__).resolve().parent / "static"
 def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
     core = engine or Engine(settings)
     key = configuration_key(core.settings)
+    vendors = VendorLookup(core.settings.database.with_suffix('.vendors.sqlite3'))
     stop = threading.Event()
     thread = None
 
@@ -33,6 +35,7 @@ def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
         if thread:
             thread.join(timeout=3)
         core.store.close()
+        vendors.close()
 
     app = FastAPI(title="WiFi Sentinel", version="0.1.0", lifespan=lifespan, docs_url=None, redoc_url=None)
 
@@ -118,5 +121,25 @@ def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
         if not 1 <= limit <= 500:
             raise HTTPException(400, 'limit must be 1..500')
         return core.store.devices(limit)
+
+    @app.get('/api/alert-sources')
+    def alert_sources():
+        return core.store.alert_sources()
+
+    @app.get('/api/mac/{address}')
+    def mac_details(address: str):
+        try:
+            mac = normalize_mac(address)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        return {'mac': mac, 'observations': core.store.mac_details(mac),
+                'alert_sources': core.store.alert_sources()}
+
+    @app.get('/api/mac/{address}/vendor')
+    def vendor_details(address: str, refresh: bool = False):
+        try:
+            return vendors.lookup(address, refresh)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
 
     return app

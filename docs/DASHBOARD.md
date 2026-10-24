@@ -21,6 +21,10 @@ Configuration and Status remain available from every tab. See
 
 ## Device observations
 
+MAC addresses open the shared [vendor/local-details popup](MAC_LOOKUP.md).
+Recorded alert-source identities are red with a warning indicator across every
+view. Historical alerts without source identities are marked unknown.
+
 Devices summarizes source, destination and BSSID addresses from retained frames
 in the last 24 hours. Broadcast, multicast and all-zero addresses are excluded.
 Each frame is counted once per observed address, even when the same address

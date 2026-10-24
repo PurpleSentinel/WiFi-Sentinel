@@ -1,17 +1,17 @@
 # ESP-IDF firmware (ESP32-C5 / ESP32-C6)
 
 Passive receive-only sensor. No GPIO attachments are required. The project has
-not been validated on the ESP32-C5 eBeetle 2 hardware; see
+been built/flashed on the connected ESP32-C6, while the C5 path remains unvalidated; see
 [validation plan](../docs/VALIDATION.md).
 
-For an ESP32-C6 connected through its native USB Serial/JTAG interface, use:
+For the tested ESP32-C6 native USB Serial/JTAG interface, first set `SENSOR_PORT` to its verified `/dev/serial/by-id/...` path (see [Hardware](../docs/HARDWARE.md)). Stop the collector before opening/flashing its port, then use:
 
 ```bash
 source ~/esp/esp-idf/export.sh
 cd firmware
 idf.py set-target esp32c6
 idf.py build
-idf.py -p /dev/ttyACM1 flash
+idf.py -p "$SENSOR_PORT" flash
 ```
 
 The C6 target defaults select the USB Serial/JTAG console, sensor ID
@@ -24,20 +24,17 @@ Prerequisites: ESP-IDF **v5.5.2 or newer in the 5.5 branch** with the selected t
 support. Start with v5.5.4 for a known documented patch release. Prefer a newer
 reviewed patch release if available.
 
-```bash
-source ~/esp/esp-idf/export.sh
-cd firmware
-idf.py set-target esp32c5
-idf.py menuconfig
-idf.py build
-idf.py -p /dev/ttyACM0 flash monitor
-```
+The legacy Makefile `build-firmware` target selects C5; for this C6 installation use the explicit commands above.
+
+The optional C5 build uses `idf.py set-target esp32c5`; qualify that separate
+board and select the proper console before building. It is not the attached C6.
+
 
 Under `WiFi Sentinel sensor configuration`, configure fixed band/channel and
 sensor ID. Select the console interface under ESP-IDF's `Component config > ESP
 System Settings > Channel for console output` to match the *actual PCB's USB or
 UART circuitry*. USB Serial/JTAG and external USB-UART are not interchangeable.
-Do not assume the eBeetle 2 uses the same USB wiring as Espressif's DevKitC.
+The connected board's commercial model and antenna arrangement remain unknown; no eBeetle 2 identification or board pinout is assumed.
 
 To check the receiver without the Pi, look for `WIDS { ... }` prefixed lines.
 On quiet networks only heartbeat events may appear. Set beacon sample N=1 for

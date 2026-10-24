@@ -12,6 +12,8 @@ Versions of Fedora differ in package names. If the above reports a missing packa
 
 ## 2. Install ESP-IDF (separate from this repo)
 
+The deployed ESP32-C6 was built/flashed with v5.5.4. C6 supports 2.4 GHz only; its target defaults use native USB Serial/JTAG. Optional C5/5 GHz support remains unvalidated.
+
 Example known documented version: v5.5.4. Upgrading within a security-reviewed patch series is sensible. **Do not use early ESP32-C5 preview releases below v5.5.2 for production-revision C5 devices.**
 
 ```bash
@@ -19,7 +21,7 @@ mkdir -p ~/esp
 cd ~/esp
 git clone --recursive --branch v5.5.4 https://github.com/espressif/esp-idf.git
 cd esp-idf
-./install.sh esp32c5
+./install.sh esp32c6
 . ./export.sh
 idf.py --version
 ```
@@ -42,20 +44,20 @@ To publish later, create an empty repository using the GitHub website and follow
 
 ```bash
 cd firmware
-idf.py set-target esp32c5
+idf.py set-target esp32c6
 idf.py menuconfig
 idf.py build
 ```
 
-Select: `WiFi Sentinel sensor configuration` for band/channel/sensor ID. For serial reporting, ensure the **console output channel** matches the eBeetle PCB (native USB Serial/JTAG vs board UART bridge). The firmware relies on `printf` through the ESP-IDF console; it has no separate hardcoded pinout.
+Select: `WiFi Sentinel sensor configuration` for band/channel/sensor ID. For serial reporting, ensure the **console output channel** matches the actual PCB (native USB Serial/JTAG vs board UART bridge). The firmware relies on `printf` through the ESP-IDF console; it has no separate hardcoded pinout.
 
 ## 5. Identify and flash the board
 
 ```bash
 ls -l /dev/serial/by-id/ 2>/dev/null || true
 ls -l /dev/ttyACM* /dev/ttyUSB* 2>/dev/null || true
-# Example only: substitute YOUR board's actual serial device
-idf.py -p /dev/ttyACM0 flash monitor
+# Set SENSOR_PORT to the verified /dev/serial/by-id/... path first
+idf.py -p "$SENSOR_PORT" flash monitor
 ```
 
 You may need permissions to use the serial device:
@@ -83,7 +85,7 @@ wifi-sentinel serve
 The dashboard is `http://127.0.0.1:8181`. For a plugged-in board, stop the monitor terminal so it releases the serial port, then:
 
 ```bash
-export WIDS_SERIAL_PORT=/dev/ttyACM0   # substitute your exact device
+export WIDS_SERIAL_PORT="$SENSOR_PORT"   # verified by-ID path
 wifi-sentinel serve
 ```
 

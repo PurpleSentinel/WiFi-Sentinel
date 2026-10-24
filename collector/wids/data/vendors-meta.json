@@ -1,0 +1,14 @@
+{
+  "source": "MACLookup",
+  "url": "https://maclookup.app/downloads/json-database",
+  "download_url": "https://maclookup.app/downloads/json-database/get-db",
+  "retrieved_at": "2026-10-24T15:17:20+00:00",
+  "records": 59170,
+  "fields": [
+    "macPrefix",
+    "vendorName",
+    "private",
+    "blockType",
+    "lastUpdate"
+  ]
+}

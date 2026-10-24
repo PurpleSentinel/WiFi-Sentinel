@@ -52,10 +52,29 @@ All four views also loaded successfully against the running LAN collector; the
 Devices view displayed 30 observed addresses during that check. Live reduced-motion
 rendering produced a static logo, with no browser JavaScript errors.
 
+### MAC lookup and hardware documentation audit — 2026-10-24
+
+- 43 collector tests passed, including exact multi-source alert persistence,
+  legacy schema migration, source expiry, normalized lookup, longest-prefix
+  matching, prefix-only network requests, persistent cache reuse, and offline /
+  corrupt-cache / missing-registry fallbacks.
+- Four Playwright browser checks passed, covering clickable MACs and red source
+  highlighting across tabs and nested Configuration lookups, vendor text safety,
+  retry/error states, mobile layout, focus restoration, and existing controls.
+- The live popup for the retained Nokia BSSID loaded its registered organization,
+  additional organization address, local observations and legacy alert context.
+  The older alert correctly retains an unknown contributing-source identity.
+- `/proc/device-tree/model` confirmed Raspberry Pi 4 Model B Rev 1.2. Hardware
+  documentation now uses the tested C6 / Pi 4 path and records board-level
+  unknowns, while separating optional unvalidated C5/5 GHz claims.
+- Cross-document hardware-reference searches and local Markdown-link checks
+  passed. Sensor channel remained 6; no Pi network or other ESP device settings
+  were modified, and no firmware reflash was needed for these changes.
+
 ## What has NOT been validated
 
-- Compilation against a complete ESP-IDF toolchain, especially ESP32-C5-specific Wi-Fi band mode and RX metadata declarations.
-- eBeetle 2 hardware USB console/boot flow, antenna, flash capacity and power consumption.
+- C5 compilation and hardware operation; only the C6 target has been built/flashed in this installation.
+- Exact C6 board model/PCB, antenna arrangement, flash capacity and power consumption; no eBeetle 2 board identification has been established.
 - Validity of 5 GHz promiscuous receive on the exact board/firmware combination.
 - Wi-Fi frames captured under PMF/WPA3 networks on production hardware.
 - High-rate loss/deduplication, multiple simultaneously active real RF sensors.
@@ -77,14 +96,16 @@ wifi-sentinel serve
 
 Verify dashboard shows synthetic counts and at least 3 triggered flood/failed-status alert types. Check `/api/summary`, `/api/alerts`, `/api/frames`, `/api/health`.
 
-### Stage B: build & flash
+### Stage B: build & flash the C6
+
+Set `SENSOR_PORT` to the verified by-ID path from [Hardware](HARDWARE.md) and stop the collector first. Do not use the other ESP device's port.
 
 ```bash
 source ~/esp/esp-idf/export.sh
 cd firmware
-idf.py set-target esp32c5
+idf.py set-target esp32c6
 idf.py build
-idf.py -p /dev/ttyACM0 flash monitor
+idf.py -p "$SENSOR_PORT" flash monitor
 ```
 
 Log exact board marking, PCB revision, ESP chip revision, IDF patch version, USB VID/PID/port, selected console mode, RAM/flash usage and compile warnings/errors. Resolve all build issues; do not claim binary compatibility until checked.
@@ -96,7 +117,7 @@ Log exact board marking, PCB revision, ESP chip revision, IDF patch version, USB
 - [ ] Set beacon sample N=1 and verify parsed SSID/BSSID/channel and plausibly varying RSSI.
 - [ ] Confirm no unexpected `esp_wifi_connect`/packet transmission in source or observed behaviour.
 - [ ] Return sampling to N=20 and measure `dropped` counter during a busy period.
-- [ ] Repeat on a legitimate, region-permitted 5 GHz channel after choosing 5 GHz Kconfig mode.
+- [ ] Optional C5 only: separately qualify a C5 board before testing a permitted 5 GHz channel. The connected C6 cannot perform this test.
 - [ ] Verify observer reports match independently captured (authorised) monitor-mode management metadata (e.g. a laptop Wi-Fi adapter that supports monitor mode).
 - [ ] Verify protected management frames are not parsed as plaintext reason codes.
 

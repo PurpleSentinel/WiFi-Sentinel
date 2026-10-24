@@ -1,10 +1,10 @@
 # WiFi Sentinel
 
-**Receive-only ESP32-C5 wireless intrusion detection sensor + Raspberry Pi / Fedora collector**
+**Receive-only ESP32-C6 wireless intrusion detection sensor + Raspberry Pi 4 / Fedora collector**
 
 ![Status](https://img.shields.io/badge/status-prototype-orange) ![Python](https://img.shields.io/badge/Python-3.10%2B-blue) ![Firmware](https://img.shields.io/badge/ESP--IDF-5.5.2%2B-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
-> **Build status:** the Python collector, API, dashboard and synthetic tests run on a development computer. The C firmware is an ESP-IDF implementation intended for ESP32-C5 and **has not been compiled, flashed or RF-validated on the specific eBeetle 2 board** in this release. Validate the board's USB console, antenna, regulatory channels and capture behaviour before treating it as a deployed sensor. No hardware-specific GPIO assignments are assumed.
+> **Tested hardware:** ESP32-C6 revision v0.0 with native USB Serial/JTAG, connected to a Raspberry Pi 4 Model B Rev 1.2. ESP-IDF v5.5.4 build/flash, live 2.4 GHz telemetry, runtime channel switching and persistence have been exercised. The exact sensor board product/PCB and antenna remain unidentified. Optional C5/5 GHz support is unvalidated; the connected C6 is **2.4 GHz only**. See [hardware evidence](docs/HARDWARE.md) and [validation limits](docs/VALIDATION.md).
 
 WiFi Sentinel captures a small set of **802.11 management-frame metadata** passively, reports events via USB serial, and applies explainable anomaly rules in a Python collector. It does **not** inject frames, disconnect clients, attempt logins, crack passwords, decode user traffic, or perform countermeasures.
 
@@ -14,12 +14,12 @@ WiFi Sentinel captures a small set of **802.11 management-frame metadata** passi
 |---|---|---|
 | Passive deauthentication/disassociation monitoring | Implemented in source | Requires board hardware validation |
 | Authentication/association monitoring | Implemented in source | 802.11 management status, not WPA password success |
-| Fixed-channel 2.4 GHz or 5 GHz selection | Implemented in source | One band/channel at a time; requires valid regulatory channel |
+| Fixed-channel 2.4 GHz selection | Tested on C6 | One channel at a time; optional C5/5 GHz path is unvalidated |
 | Protected SSID / unfamiliar BSSID alert | Implemented | Heuristic; configured allowlists needed |
 | Sensor IDs and replay | Implemented | One live USB port per collector process; multi-port fan-in is a roadmap item |
 | Local web UI / API / SQLite | Implemented | Localhost binding, no login interface |
 | Synthetic demonstration and deterministic tests | Implemented | No RF attacks generated |
-| Real-board RF capture, high-traffic performance, PMF verification | **Not yet validated** | Follow validation checklist |
+| Live C6 RF/USB sanity check | Exercised | High-traffic performance, accuracy and PMF remain unvalidated |
 | Channel hopping, true RF jamming detection, EAPOL parsing, PCAP | **Out of scope** | Not promised |
 
 ## Quick start: software-only demonstration (Fedora, Raspberry Pi OS, macOS, Linux)
@@ -49,16 +49,17 @@ python -m pytest -q tests
 
 ## Hardware steps
 
-ESP32-C6 boards can also run the sensor on **2.4 GHz only**. See the
-[C6 build instructions](firmware/README.md) for native USB Serial/JTAG defaults.
+The tested sensor is an ESP32-C6, with native USB Serial/JTAG and 2.4 GHz capture.
 
-1. Confirm the exact **eBeetle 2 ESP32-C5 board**, console interface and external/internal antenna. The *ESP32-C5 chipset* features are confirmed; the PCB implementation remains a verification item.
-2. Install ESP-IDF v5.5.2+ (recommend v5.5.4 patch series) and select `esp32c5`.
-3. `cd firmware && idf.py set-target esp32c5 && idf.py menuconfig`.
-4. Choose a *legal* fixed 2.4 GHz or 5 GHz channel, sensor ID, console output, and beacon sample factor.
-5. `idf.py build && idf.py -p /dev/ttyACM0 flash monitor` (port is an **example**; find yours).
-6. Verify the `WIDS` heartbeat prefix and sampled beacons without the collector before connecting to the Pi.
-7. On the Pi/Fedora machine run the collector with `WIDS_SERIAL_PORT=/dev/serial/by-id/...` (USB telemetry and sensor configuration).
+1. Identify the chip/USB serial and exact board where possible; see [Hardware](docs/HARDWARE.md).
+2. Install the tested ESP-IDF v5.5.4 toolchain for `esp32c6`.
+3. `cd firmware && idf.py set-target esp32c6 && idf.py menuconfig`.
+4. Choose a permitted 2.4 GHz channel and sensor ID. C6 defaults select USB Serial/JTAG and channel 6.
+5. Set `SENSOR_PORT` to the **verified** `/dev/serial/by-id/...` path, then run `idf.py build && idf.py -p "$SENSOR_PORT" flash monitor`. Stop any collector using that port first.
+6. Verify `WIDS` heartbeats and sampled beacons, then stop the serial monitor.
+7. Configure `WIDS_SERIAL_PORT` with the same by-ID path and start the collector. This installation's other ESP currently uses `/dev/ttyACM0`; do not flash or open it.
+
+The source also includes optional C5/5 GHz support; it has not been hardware-validated and is not the connected sensor.
 
 See **[Firmware](firmware/README.md)**, **[Fedora setup](docs/FEDORA_SETUP.md)**, **[Pi setup](docs/RASPBERRY_PI.md)** and **[Validation](docs/VALIDATION.md)**.
 
@@ -66,8 +67,8 @@ See **[Firmware](firmware/README.md)**, **[Fedora setup](docs/FEDORA_SETUP.md)**
 
 ```mermaid
 flowchart TD
-  RF[Nearby 802.11 management frames] --> C5[ESP32-C5 promiscuous RX]
-  C5 -->|bounded FreeRTOS queue| EXPORT[USB serial NDJSON telemetry]
+  RF[Nearby 802.11 management frames] --> SENSOR[ESP32-C6 promiscuous RX]
+  SENSOR -->|bounded FreeRTOS queue| EXPORT[USB serial NDJSON telemetry]
   EXPORT -->|WIDS v1 messages| READ[Python serial reader]
   READ --> VALIDATE[Protocol validation]
   VALIDATE --> DETECT[Sliding-window IDS rules]
@@ -82,7 +83,7 @@ The radio is **receive-only by application design**: firmware configures STA mod
 
 ```text
 wifi-sentinel/
-├── firmware/                 ESP-IDF esp32c5 management-frame receiver
+├── firmware/                 ESP-IDF C6 receiver; optional C5 target
 │   ├── main/main.c           Frame parsing, beacon sampling, queue, NDJSON
 │   └── main/Kconfig.projbuild Band, channel, sensor ID, heartbeat
 ├── collector/
@@ -96,7 +97,6 @@ wifi-sentinel/
 ├── examples/                 Sample NDJSON events and local replay
 ├── scripts/                  Fedora/Pi bootstrap helper scripts
 ├── systemd/                  Optional user service template
-├── .github/workflows/        Python CI
 └── LICENSE
 ```
 
@@ -112,17 +112,18 @@ All defaults are tunable environment variables, with 60-second repeat-alert cool
 
 ## Responsible scope and data handling
 
-Only monitor networks for which you have authority. 802.11 frame metadata contains MAC addresses and SSIDs and may be personal information. Retain only what you need, secure the Pi filesystem, and avoid sharing raw logs publicly. SQLite data and alerts expire after 7 days by default; attached sensor identity and last-seen information persists until removed. **The dashboard has no authentication** and intentionally binds to `127.0.0.1` unless explicitly changed. Use SSH forwarding or a properly protected reverse proxy for remote access. See [Security](SECURITY.md).
+Only monitor networks for which you have authority. 802.11 frame metadata contains MAC addresses and SSIDs and may be personal information. Retain only what you need, secure the Pi filesystem, and avoid sharing raw logs publicly. SQLite data and alerts expire after 7 days by default; attached sensor identity and last-seen information persists until removed. **Dashboard reads have no authentication; configuration writes require a key** and intentionally binds to `127.0.0.1` unless explicitly changed. Use SSH forwarding or a properly protected reverse proxy for remote access. See [Security](SECURITY.md).
 
 ## Documentation
 
 - [Dashboard tabs, device observations and animation](docs/DASHBOARD.md)
+- [Clickable MACs, vendor details and red alert sources](docs/MAC_LOOKUP.md)
 - [Dashboard Configuration and Status dialogs](docs/CONFIGURATION.md)
 
 - [Architecture and data flow](docs/ARCHITECTURE.md)
-- [BOM, eBeetle 2 hardware unknowns and scaling](docs/HARDWARE.md)
+- [Tested hardware, BOM, board unknowns and scaling](docs/HARDWARE.md)
 - [Fedora development and ESP-IDF setup](docs/FEDORA_SETUP.md)
-- [Raspberry Pi 5 deployment](docs/RASPBERRY_PI.md)
+- [Raspberry Pi 4 deployment](docs/RASPBERRY_PI.md)
 - [Detection methodology, tuning and false positives](docs/DETECTION.md)
 - [JSON telemetry protocol](docs/PROTOCOL.md)
 - [Security, privacy and threat model](SECURITY.md)
@@ -133,4 +134,4 @@ Only monitor networks for which you have authority. 802.11 frame metadata contai
 
 ## Version and contributions
 
-Initial **v0.1.0 prototype**, MIT licensed. Contributions welcome via PR; run unit tests, review changes for passive-only operation, and document real hardware test results. The Python tests are automated in GitHub Actions. Firmware compilation is a separate manual validation task because the current archive does not bundle the ESP-IDF toolchain.
+Initial **v0.1.0 prototype**, MIT licensed. Contributions welcome via PR; run unit tests, review changes for passive-only operation, and document real hardware test results. Run the Python and browser checks locally; no GitHub CI checks were reported for recent PRs. Firmware compilation is a separate manual validation task because the current archive does not bundle the ESP-IDF toolchain.

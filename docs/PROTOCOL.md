@@ -10,7 +10,7 @@ One ASCII line per event, beginning exactly `WIDS `, followed by one compact JSO
 {
   "v": 1,
   "kind": "frame",
-  "sensor_id": "c5-sensor-01",
+  "sensor_id": "c6-sensor-01",
   "channel": 6,
   "subtype": "deauth",
   "sa": "02:aa:bb:cc:dd:01",
@@ -36,7 +36,7 @@ One ASCII line per event, beginning exactly `WIDS `, followed by one compact JSO
 ## `heartbeat` event
 
 ```json
-{"v":1,"kind":"heartbeat","sensor_id":"c5-sensor-01","channel":6,"uptime_ms":60000,"captured":2048,"dropped":2}
+{"v":1,"kind":"heartbeat","sensor_id":"c6-sensor-01","channel":6,"uptime_ms":60000,"captured":2048,"dropped":2}
 ```
 
 `dropped` counts events that failed to enqueue for USB export. This does *not* measure RF/driver packet losses. `captured` counts events selected for queueing (after beacon sampling). The dashboard displays dropped events from the most recent heartbeat.
@@ -83,6 +83,9 @@ Data reads and protected configuration writes:
 - `GET /api/channels` counts grouped by channel
 - `GET /api/devices?limit=200` observed unicast address summaries from the last
   24 hours, max 500; see [device observation semantics](DASHBOARD.md)
+- `GET /api/alert-sources` retained alert contributing-source identities and legacy unknown-source count
+- `GET /api/mac/{address}` retained local observations and associated alerts
+- `GET /api/mac/{address}/vendor` local registry and cached prefix-only enrichment; `?refresh=true` retries enrichment
 - `GET /api/configuration` current settings and sensor capabilities (no key)
 - `POST /api/configuration/collector` validated collector settings patch
 - `POST /api/configuration/sensor` acknowledged sensor settings patch
