@@ -1,7 +1,7 @@
 # Passive Bluetooth Low Energy monitoring
 
-BLE is a post-v1.1.0 feature; the published v1.1.0 source archive predates it.
-Use a checkout containing the BLE implementation when following this guide.
+BLE monitoring is included from v1.2.0. The v1.1.0 source archive predates this
+feature; upgrade the collector before flashing BLE-capable firmware.
 
 The ESP32-C6 USB sensor supports optional passive **legacy BLE advertisements on
 LE 1M**, alongside Wi-Fi management-frame monitoring. It does not perform active
