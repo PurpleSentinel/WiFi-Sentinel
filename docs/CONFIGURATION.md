@@ -86,6 +86,16 @@ Current runtime-capable firmware supports:
 | Beacon/probe sample factor | `WIDS_BEACON_SAMPLE_N` | One in N, 1–1000 |
 | Heartbeat interval | `WIDS_HEARTBEAT_SECONDS` | 1–300 seconds |
 
+On upgraded firmware the sample factor applies independently to each BSSID,
+channel and advertisement subtype. New entries/types are reported immediately,
+then after every N further observations; N=1 reports all advertisements. Beacon
+and probe-response traffic cannot consume one another's sampling quota. The
+fixed table holds 64 BSSID/channel entries, with FIFO eviction; evicted entries
+are treated as new when seen again. This bounds state but can increase export
+volume under churn. Non-advertisement management subtypes remain unsampled.
+An observed change to the factor resets that entry's counters. The dialog shows
+the sensor-reported sampling mode; older firmware may report no mode.
+
 The C6 offers only 2.4 GHz. Two-GHz channels follow the driver's current country
 profile. The C5 additionally offers a conservative non-DFS 5 GHz subset
 (36, 40, 44, 48); the driver can reject tuning under regulatory restrictions.

@@ -136,12 +136,12 @@ function sensorFields(sensor){
  el('save-sensor').disabled=true;
  if(!sensor.connected||!info){el('sensor-description').textContent=sensor.connected?'Connected, but runtime configuration is unavailable. Update sensor firmware and reopen Configuration.':'Sensor disconnected. Reconnect it and reopen Configuration.';return;}
  const values=info.values,caps=info.capabilities;
- el('sensor-description').textContent=(caps.chip||'Sensor')+' · '+(caps.console||'Unknown console')+' (console selection requires rebuilding firmware) · regulatory profile '+(caps.country||'unknown');
+ el('sensor-description').textContent=(caps.chip||'Sensor')+' · '+(caps.console||'Unknown console')+' (console selection requires rebuilding firmware) · regulatory profile '+(caps.country||'unknown')+(caps.beacon_sampling==='per_bssid_channel_subtype'?' · Per-AP sampling; first advertisement reported':' · Sampling method not reported by sensor');
  field(parent,'sensor_id',values.sensor_id,{scope:'sensor'});
  const band=field(parent,'band',values.band,{scope:'sensor',options:caps.bands});
  const channel=field(parent,'channel',values.channel,{scope:'sensor',options:caps.channels[values.band]});
  band.addEventListener('change',()=>{channel.replaceChildren();for(const value of caps.channels[band.value]||[]){const option=document.createElement('option');option.value=String(value);option.textContent=String(value);channel.append(option);}});
- field(parent,'beacon_sample_n',values.beacon_sample_n,{scope:'sensor',limits:[1,1000]});field(parent,'heartbeat_seconds',values.heartbeat_seconds,{scope:'sensor',limits:[1,300]});el('save-sensor').disabled=false;
+ const sample=field(parent,'beacon_sample_n',values.beacon_sample_n,{scope:'sensor',limits:[1,1000]});if(caps.beacon_sampling==='per_bssid_channel_subtype')sample.parentElement.querySelector('small').textContent='Allowed: 1–1000. First advertisement is reported, then one in N per AP, channel and subtype.';field(parent,'heartbeat_seconds',values.heartbeat_seconds,{scope:'sensor',limits:[1,300]});el('save-sensor').disabled=false;
 }
 async function getJSON(path,options={}){const response=await fetch('/api/'+path,{cache:'no-store',...options});let result;try{result=await response.json();}catch{throw new Error('Invalid server response');}if(!response.ok)throw new Error(typeof result.detail==='string'?result.detail:'Request failed (HTTP '+response.status+')');return result;}
 async function loadConfiguration(){

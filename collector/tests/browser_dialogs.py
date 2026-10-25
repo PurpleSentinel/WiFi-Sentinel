@@ -18,6 +18,7 @@ class DashboardDialogs(unittest.TestCase):
                        'beacon_sample_n': 20, 'heartbeat_seconds': 15},
             'capabilities': {'chip': 'esp32c6', 'console': 'USB Serial/JTAG',
                              'country': '01', 'bands': ['2.4'],
+                             'beacon_sampling': 'per_bssid_channel_subtype', 'beacon_sampling_capacity': 64,
                              'channels': {'2.4': [1, 6, 11]}}}}
         config = {'sensor': sensor, 'collector': {
             'window_seconds': 10, 'protected_ssids': ['Office'],
@@ -88,6 +89,7 @@ class DashboardDialogs(unittest.TestCase):
             page.get_by_role('button', name='Configuration', exact=True).click()
             page.locator('#sensor-channel').wait_for()
             self.assertEqual(page.locator('#sensor-band option').all_text_contents(), ['2.4'])
+            self.assertIn('Per-AP sampling', page.locator('#sensor-description').inner_text())
             self.assertTrue(page.locator('#restart-host').evaluate('(node) => node.readOnly'))
             page.locator('#sensor-channel').select_option('11')
             page.get_by_role('button', name='Apply sensor settings').click()

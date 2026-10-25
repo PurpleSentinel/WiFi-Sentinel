@@ -96,4 +96,8 @@ Limit database permissions and keep the Pi on a trusted management LAN.
 
 ## 5. Capacity / operations
 
-SQLite is suitable for a modest number of sensors, but a default every-Nth-beacon telemetry strategy is recommended to reduce wear and contention. Monitor `dropped` heartbeat counts and DB size, reduce beacon capture if necessary, and use an SSD for sustained collection. See `docs/OPERATIONS.md`.
+SQLite is suitable for a modest number of sensors. Per-BSSID/channel/subtype
+sampling reduces steady-state beacon/probe telemetry while immediately reporting
+new entries. New identities and table eviction can temporarily raise the rate.
+Monitor `dropped` heartbeat counts and DB size, increase the sample factor if
+needed, and use an SSD for sustained collection. See `docs/OPERATIONS.md`.

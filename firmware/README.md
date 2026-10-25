@@ -40,6 +40,15 @@ To check the receiver without the Pi, look for `WIDS { ... }` prefixed lines.
 On quiet networks only heartbeat events may appear. Set beacon sample N=1 for
 an initial functional test, then restore 20 to reduce traffic.
 
+Sampling uses fixed state for 64 BSSID/channel entries and independent beacon /
+probe-response counters. First observations are reported immediately, followed
+by one after every N further observations. Other management subtypes remain
+unsampled. FIFO eviction reports returning identities as new; it can increase
+exports under address churn but does not grow memory or hide new entries.
+The callback's sampler performs no allocation or I/O and scans at most 64 entries.
+Host C tests exercise the same sampler header, including the four-AP periodic
+regression, mixed subtype traffic, runtime factors and eviction stress.
+
 With runtime-capable firmware, the dashboard Configuration dialog can change the
 sensor ID, band/channel, sample factor and heartbeat interval over USB. Settings
 are acknowledged after NVS persistence and survive reboots; they override

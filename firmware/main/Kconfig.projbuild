@@ -25,13 +25,15 @@ menu "WiFi Sentinel sensor configuration"
             Check the correct band and local regulatory permissions.
 
     config WIDS_BEACON_SAMPLE_N
-        int "Report one in N beacons and probe responses (per subtype, globally)"
+        int "Report one in N advertisements per BSSID/channel/subtype"
         default 20
         range 1 1000
         help
             Beacon/probe sampling saves transport and storage bandwidth;
-            it makes beacon counts non-exhaustive. Flood frame types
-            are not sampled.
+            the first observation of each BSSID/channel/subtype is reported,
+            then every Nth observation. A fixed 64-entry table bounds memory;
+            evicted identities report their next first sighting again. Counts
+            remain non-exhaustive. Flood frame types are not sampled.
 
     config WIDS_HEARTBEAT_SECONDS
         int "Heartbeat period in seconds"

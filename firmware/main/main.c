@@ -29,6 +29,7 @@
 #include "nvs_flash.h"
 #include "sdkconfig.h"
 #include "ssid_codec.h"
+#include "beacon_sampler.h"
 #if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
 #include "driver/usb_serial_jtag.h"
 #include "driver/usb_serial_jtag_vfs.h"
@@ -57,7 +58,7 @@ typedef struct {
 static QueueHandle_t s_queue = NULL;
 static volatile uint32_t s_dropped = 0;
 static volatile uint32_t s_captured = 0;
-static uint32_t s_beacon_counter = 0;
+static wids_sampler_t s_sampler;
 
 /* Runtime configuration is owned by export_task. Only sample_n is read by RX. */
 typedef struct {
@@ -147,6 +148,8 @@ static void report_config(const char *id, const char *error)
     cJSON_AddNumberToObject(values, "heartbeat_seconds", s_config.heartbeat_seconds);
     cJSON *caps = cJSON_AddObjectToObject(root, "capabilities");
     cJSON_AddStringToObject(caps, "chip", CONFIG_IDF_TARGET);
+    cJSON_AddStringToObject(caps, "beacon_sampling", "per_bssid_channel_subtype");
+    cJSON_AddNumberToObject(caps, "beacon_sampling_capacity", WIDS_SAMPLER_CAPACITY);
 #if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
     cJSON_AddStringToObject(caps, "console", "USB Serial/JTAG");
 #else
@@ -287,10 +290,8 @@ static void rx_callback(void *buffer, wifi_promiscuous_pkt_type_t type)
 
     uint8_t subtype = (bytes[0] >> 4) & 0x0f;
     if (!subtype_name(subtype)) return;
-    if (subtype == 8 || subtype == 5) {
-        s_beacon_counter++;
-        if (s_beacon_counter % __atomic_load_n(&s_config.sample_n, __ATOMIC_RELAXED)) return;
-    }
+    if (!wids_sample_frame(&s_sampler, bytes + 16, packet->rx_ctrl.channel, subtype,
+                           (uint16_t)__atomic_load_n(&s_config.sample_n, __ATOMIC_RELAXED))) return;
 
     rx_frame_t output = {0};
     output.subtype = subtype;

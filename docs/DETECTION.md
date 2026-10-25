@@ -69,7 +69,7 @@ export WIDS_COOLDOWN_SECONDS=60
 - Wi-Fi 6, PMF and chip driver behaviour should be tested on the actual hardware.
 - Management headers can be forged; source MAC != authenticated identity.
 - Sniffer access to auth frames does not reveal WPA/SAE authentication results.
-- Beacon sampling means rogue SSID detection may be delayed; lowering the sample factor increases data volume.
+- Beacon/probe sampling is per BSSID/channel/subtype, with an immediate first report for new state and subsequent one-in-N reports. Lowering N increases data volume; sampling remains non-exhaustive and cannot prevent capture/queue losses.
 - Rates use collector processing time rather than high-resolution over-the-air timestamp.
 - A determined malicious radio can overload the observer's receive queue.
 - RF jamming requires PHY-level measurements not implemented here.
