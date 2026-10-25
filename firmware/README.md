@@ -93,3 +93,11 @@ Wi-Fi sniffer RX and BLE scanning share one radio and can miss traffic during
 concurrent monitoring. Separate sensors are needed for dependable simultaneous
 coverage. See [BLE configuration, limits and interpretation](../docs/BLE.md) and
 [measured validation](../docs/VALIDATION.md).
+
+## Collector-side BLE explorer additions
+
+Post-v1.2 identification/layout and RSSI-curve enhancements require an updated
+collector/dashboard, not a new sensor image or host Bluetooth stack. Preserve
+the current USB device, Wi-Fi channel and Pi network configuration. Review
+[BLE explorer](../docs/BLE_EXPLORER.md) and [approximate ranging](../docs/BLE_RANGING.md).
+No physical calibration accuracy or new RF capability is implied.

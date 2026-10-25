@@ -40,3 +40,13 @@
 ## Not planned
 
 Frame injection, deauth transmission, password guessing, automatic disconnects, covert collection, or network disruption. This is an observation and detection platform.
+
+## Implemented after Release 1.2
+
+- #29: evidence-based BLE labels, offline SIG company/service names, protected
+  aliases/notes and an improved searchable/filterable explorer.
+- #28: a selected-identity RSSI distance-decay plot, session calibration/model
+  controls and median/raw estimates with explicit uncertainty/freshness labels.
+
+Physical ranging calibration/accuracy experiments, identity continuity across
+rotating addresses and extended-advertisement decoding remain outside this work.

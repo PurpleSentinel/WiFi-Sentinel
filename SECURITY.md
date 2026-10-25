@@ -67,3 +67,18 @@ restrict dashboard access and redact exported observations before sharing.
 BLE private addresses rotate and public addresses can be spoofed; neither a rule
 match nor a company identifier proves a device's owner or identity. The C6 shared
 radio can miss Wi-Fi and BLE traffic. See [BLE monitoring](docs/BLE.md).
+
+## BLE explorer annotations and approximate range
+
+Aliases/notes are persistent local annotations protected by the configuration key
+and same-origin checks for writes. They remain after observation expiry, so erase
+unneeded annotations explicitly. They are exposed to unauthenticated readers and
+included in database backups. Untrusted names/notes/registry strings are rendered
+as text. Labels are not transferred between sensors or address types; address
+reuse/spoofing can still mislead an operator annotation.
+
+Readable company/service assignments use an offline SIG snapshot; no observations
+are uploaded. An assignment is not proof of hardware manufacture or ownership.
+RSSI-derived distance is an illustrative model without verified calibration or
+physical accuracy; do not interpret it as precise location or identity evidence.
+See [BLE explorer](docs/BLE_EXPLORER.md) and [ranging](docs/BLE_RANGING.md).

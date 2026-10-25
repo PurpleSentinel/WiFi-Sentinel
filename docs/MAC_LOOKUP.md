@@ -115,3 +115,13 @@ bits. A public BLE address may use the existing prefix-only lookup. Bluetooth
 company IDs identify the namespace of advertised manufacturer data; this MAC
 snapshot is not a Bluetooth company registry. No device model, ownership or
 persistent physical identity is inferred. See [BLE interpretation](BLE.md).
+
+## Readable BLE identification
+
+The [explorer](BLE_EXPLORER.md) supplements BLE evidence with an independent
+offline Bluetooth SIG company/service registry. It does not reuse the MAC-prefix
+snapshot for these identifiers. Display-label priority is operator alias,
+advertised name, known service, known company and explicit unnamed fallback.
+Every label has provenance; model/owner identity remains unverified. Random
+address subtypes describe their format, not a hardware vendor. Ranging inputs
+are scoped to the same sensor/address/type and never imply identity continuity.

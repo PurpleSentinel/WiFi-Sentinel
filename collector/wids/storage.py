@@ -9,6 +9,7 @@ from pathlib import Path
 from .detection import Alert
 from .device_roles import EVIDENCE_LABELS, ROLE_QUERY, classification
 from .models import Frame
+from .ble_identity import identify
 
 
 class Store:
@@ -28,6 +29,11 @@ class Store:
                     payload_hex TEXT NOT NULL, event_type INTEGER NOT NULL, uptime_ms INTEGER NOT NULL);
                 CREATE INDEX IF NOT EXISTS ix_ble_ts ON ble_observations(timestamp);
                 CREATE INDEX IF NOT EXISTS ix_ble_address ON ble_observations(address,address_type,timestamp);
+                CREATE INDEX IF NOT EXISTS ix_ble_identity ON ble_observations(sensor_id,address,address_type,id DESC);
+                CREATE TABLE IF NOT EXISTS ble_labels (
+                    sensor_id TEXT NOT NULL,address TEXT NOT NULL,address_type TEXT NOT NULL,
+                    alias TEXT NOT NULL,notes TEXT NOT NULL,updated_at TEXT NOT NULL,
+                    PRIMARY KEY(sensor_id,address,address_type));
                 CREATE TABLE IF NOT EXISTS ble_alerts (
                     id INTEGER PRIMARY KEY, timestamp TEXT NOT NULL, sensor_id TEXT NOT NULL,
                     address TEXT NOT NULL, address_type TEXT NOT NULL, expression TEXT NOT NULL);
@@ -52,6 +58,16 @@ class Store:
                     sensor_id TEXT PRIMARY KEY, last_seen TEXT NOT NULL, channel INTEGER,
                     uptime_ms INTEGER, dropped INTEGER DEFAULT 0, notes TEXT DEFAULT '');
             """)
+            ble_columns = {row['name'] for row in self.db.execute('PRAGMA table_info(ble_observations)')}
+            if 'local_name' not in ble_columns:
+                from .ble import decode_ad
+                self.db.execute('ALTER TABLE ble_observations ADD COLUMN local_name TEXT')
+                # One-time migration. Stream existing observations without copying the DB into memory.
+                cursor = self.db.execute('SELECT id,payload_hex FROM ble_observations')
+                while batch := cursor.fetchmany(500):
+                    self.db.executemany('UPDATE ble_observations SET local_name=? WHERE id=?',
+                        [(decode_ad(bytes.fromhex(row['payload_hex']))['local_name'], row['id']) for row in batch])
+            self.db.execute("CREATE INDEX IF NOT EXISTS ix_ble_named ON ble_observations(sensor_id,address,address_type,id DESC) WHERE local_name IS NOT NULL AND local_name != ''")
             columns = {row['name'] for row in self.db.execute('PRAGMA table_info(alerts)')}
             if 'source_macs' not in columns:
                 self.db.execute('ALTER TABLE alerts ADD COLUMN source_macs TEXT')
@@ -204,8 +220,8 @@ class Store:
         ts = self.timestamp()
         with self.lock, self.db:
             if accept:
-                self.db.execute('INSERT INTO ble_observations (timestamp,sensor_id,address,address_type,rssi,payload_hex,event_type,uptime_ms) VALUES (?,?,?,?,?,?,?,?)',
-                                (ts, ad.sensor_id, ad.address, ad.address_type, ad.rssi, ad.payload_hex, ad.event_type, ad.uptime_ms))
+                self.db.execute('INSERT INTO ble_observations (timestamp,sensor_id,address,address_type,rssi,payload_hex,event_type,uptime_ms,local_name) VALUES (?,?,?,?,?,?,?,?,?)',
+                                (ts, ad.sensor_id, ad.address, ad.address_type, ad.rssi, ad.payload_hex, ad.event_type, ad.uptime_ms, ad.decoded()['local_name']))
                 self.ble_counts['ble_observations'] += 1
             for expression in matches:
                 self.db.execute('INSERT INTO ble_alerts (timestamp,sensor_id,address,address_type,expression) VALUES (?,?,?,?,?)',
@@ -219,20 +235,68 @@ class Store:
         row.update(decode_ad(bytes.fromhex(row['payload_hex'])))
         return row
 
-    def ble_observations(self, limit=100, address=None, address_type=None):
+    def ble_observations(self, limit=100, address=None, address_type=None, sensor_id=None):
         return [self.decode_ble(row) for row in self.rows(
-            'SELECT * FROM ble_observations WHERE (? IS NULL OR address=?) AND (? IS NULL OR address_type=?) ORDER BY id DESC LIMIT ?',
-            (address, address, address_type, address_type, limit))]
+            'SELECT * FROM ble_observations WHERE (? IS NULL OR address=?) AND (? IS NULL OR address_type=?) AND (? IS NULL OR sensor_id=?) ORDER BY id DESC LIMIT ?',
+            (address, address, address_type, address_type, sensor_id, sensor_id, limit))]
 
-    def ble_devices(self, limit=200):
+    def ble_devices(self, limit=200, query='', address_type='all', alert_only=False, sort='recent'):
         after = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat(timespec='seconds')
-        rows = self.rows('''WITH groups AS (SELECT sensor_id,address,address_type,COUNT(*) observation_count,
+        alert_after = (datetime.now(timezone.utc) - timedelta(days=self.ble_retention_days)).isoformat(timespec='seconds')
+        order = {'recent': 'o.id DESC', 'rssi': 'o.rssi DESC,o.id DESC',
+                 'name': "COALESCE(NULLIF(l.alias,''),observed_name,o.address) COLLATE NOCASE,o.id DESC"}[sort]
+        sql = '''WITH groups AS (SELECT sensor_id,address,address_type,COUNT(*) observation_count,
             MIN(timestamp) first_seen,MAX(timestamp) last_seen,MAX(id) latest_id
             FROM ble_observations WHERE timestamp >= ? GROUP BY sensor_id,address,address_type)
-            SELECT o.*,g.observation_count,g.first_seen,g.last_seen FROM groups g
-            JOIN ble_observations o ON o.id=g.latest_id ORDER BY o.id DESC LIMIT ?''', (after, limit + 1))
-        return {'devices': [self.decode_ble(row) for row in rows[:limit]], 'has_more': len(rows) > limit,
-                'window_hours': 24, 'note': 'Advertiser addresses, not unique physical devices; private addresses rotate.'}
+            SELECT o.*,g.observation_count,g.first_seen,g.last_seen,l.alias,l.notes,l.updated_at label_updated_at,
+            (SELECT n.local_name FROM ble_observations n WHERE n.sensor_id=o.sensor_id AND n.address=o.address
+             AND n.address_type=o.address_type AND n.timestamp>=? AND n.local_name IS NOT NULL AND n.local_name!=''
+             ORDER BY n.id DESC LIMIT 1) observed_name,
+            EXISTS(SELECT 1 FROM ble_alerts a WHERE a.sensor_id=o.sensor_id AND a.address=o.address
+                AND a.address_type=o.address_type AND a.timestamp>=?) alert_associated
+            FROM groups g JOIN ble_observations o ON o.id=g.latest_id
+            LEFT JOIN ble_labels l ON l.sensor_id=o.sensor_id AND l.address=o.address AND l.address_type=o.address_type
+            WHERE (?='all' OR o.address_type=?) AND (?=0 OR EXISTS(SELECT 1 FROM ble_alerts a
+                WHERE a.sensor_id=o.sensor_id AND a.address=o.address AND a.address_type=o.address_type AND a.timestamp>=?))
+            ORDER BY ''' + order
+        result = []
+        with self.lock:
+            total = self.db.execute('SELECT COUNT(*) FROM (SELECT 1 FROM ble_observations WHERE timestamp>=? GROUP BY sensor_id,address,address_type)', (after,)).fetchone()[0]
+            cursor = self.db.execute(sql, (after, after, alert_after, address_type, address_type, int(alert_only), alert_after))
+            # Stream candidates; filters apply before the result cap, without unbounded result memory.
+            for record in cursor:
+                row = identify(self.decode_ble(dict(record)))
+                searchable = ' '.join(str(row.get(key) or '') for key in
+                    ('display_label','alias','notes','address','sensor_id','advertised_name','address_type','address_subtype','category'))
+                searchable += ' ' + json.dumps(row['company_details'] + row['service_details'], ensure_ascii=False)
+                if query.casefold() not in searchable.casefold():
+                    continue
+                result.append(row)
+                if len(result) > limit:
+                    break
+        return {'devices': result[:limit], 'has_more': len(result)>limit, 'window_hours': 24,
+                'total_identities': total, 'limit': limit, 'query': query,
+                'note': 'Sensor/address/type identities, not unique physical devices; private addresses rotate.'}
+
+    def ble_label(self, sensor_id, address, address_type):
+        rows = self.rows('SELECT * FROM ble_labels WHERE sensor_id=? AND address=? AND address_type=?',
+                         (sensor_id,address,address_type))
+        return rows[0] if rows else {'alias':'','notes':''}
+
+    def save_ble_label(self, sensor_id, address, address_type, alias, notes):
+        with self.lock, self.db:
+            if not alias and not notes:
+                self.db.execute('DELETE FROM ble_labels WHERE sensor_id=? AND address=? AND address_type=?',
+                                (sensor_id,address,address_type))
+            else:
+                exists = self.db.execute('SELECT 1 FROM ble_labels WHERE sensor_id=? AND address=? AND address_type=?',
+                                         (sensor_id,address,address_type)).fetchone()
+                if not exists and self.db.execute('SELECT COUNT(*) FROM ble_labels').fetchone()[0] >= 1024:
+                    raise ValueError('Maximum 1024 BLE labels; clear an unused label first')
+                self.db.execute('''INSERT INTO ble_labels VALUES (?,?,?,?,?,?) ON CONFLICT(sensor_id,address,address_type)
+                    DO UPDATE SET alias=excluded.alias,notes=excluded.notes,updated_at=excluded.updated_at''',
+                    (sensor_id,address,address_type,alias,notes,self.timestamp()))
+        return self.ble_label(sensor_id,address,address_type)
 
     def all_alerts(self, limit=100):
         return self.rows('''SELECT id,timestamp,sensor_id,rule,severity,bssid,channel,frame_count,details,source_macs,

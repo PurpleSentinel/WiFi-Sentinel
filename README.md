@@ -142,6 +142,8 @@ BLE retention and a 100,000-record cap per BLE table; attached sensor identity a
 
 - [Dashboard tabs, device observations and animation](docs/DASHBOARD.md)
 - [BLE monitoring, setup, rules and shared-radio limits](docs/BLE.md)
+- [BLE explorer, readable identification and operator aliases](docs/BLE_EXPLORER.md)
+- [Approximate RSSI distance-decay plot and calibration](docs/BLE_RANGING.md)
 - [Clickable MACs, vendor details and red alert sources](docs/MAC_LOOKUP.md)
 - [Dashboard Configuration and Status dialogs](docs/CONFIGURATION.md)
 
@@ -169,3 +171,13 @@ data. Configuration and Status cover both radios; Alerts includes optional BLE
 rule matches. Passive legacy LE 1M scanning excludes Bluetooth Classic, extended
 advertisements and active scan responses. Random BLE addresses are not submitted
 for MAC vendor lookup. See [BLE configuration, limits and interpretation](docs/BLE.md).
+
+### BLE explorer and approximate range — post-v1.2 enhancements
+
+The BLE tab now offers readable evidence-based labels, offline Bluetooth SIG
+company/service names, protected aliases/notes, search/filter/sort controls and
+an advertiser workspace. Select a label to see its RSSI distance-decay model,
+calibration controls and optional median. Distances are explicitly approximate
+and uncalibrated until you supply a reference; no physical accuracy is claimed.
+These #28/#29 additions require the updated collector/dashboard and are not in
+the original v1.2.0 archive. Existing sensor firmware and Pi networking are unchanged.

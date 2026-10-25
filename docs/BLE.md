@@ -94,7 +94,10 @@ not every advertisement transmitted in the area.
   observations; BLE data is fetched only while its tab is active.
 - **Alerts** includes `ble_match` alerts and exports them with `protocol:ble`.
   Wi-Fi channel and BSSID are null for BLE. Alert source addresses are red.
-- Click a BLE advertiser to see raw advertisement hex, local name, service UUIDs,
+- Select an advertiser label to open evidence, protected aliases/notes and the
+  [RSSI distance model](BLE_RANGING.md). Search/filter/sort apply before the result cap;
+  raw recent advertisements are secondary expandable sections. See [explorer](BLE_EXPLORER.md).
+- Click a BLE address to see raw advertisement hex, local name, service UUIDs,
   manufacturer/service data, RSSI, sensor and timestamps. Random BLE addresses
   never initiate a MAC vendor lookup; public addresses can use the existing
   registration lookup. Bluetooth company IDs label advertisement data and are
@@ -130,3 +133,12 @@ name `Test` and service `180f`, with a random address and RSSI -55. It generates
 no RF traffic and has no physical-device identity. Alert rules remain disabled
 unless configured. Existing settings for that temporary database override its
 environment defaults, just as in normal operation.
+
+## Identification and approximate ranging enhancements
+
+Post-v1.2 collector/UI work for #28/#29 adds the [BLE explorer](BLE_EXPLORER.md)
+and [RSSI distance curve](BLE_RANGING.md). Company/service names use an offline
+attributed SIG snapshot; unknown identifiers remain numeric. Aliases/notes are
+key-protected, persist per sensor/address/type and do not follow address rotation.
+Model settings are session-only and per identity. Range estimates, name claims
+and company IDs are not evidence of physical identity or precise location.

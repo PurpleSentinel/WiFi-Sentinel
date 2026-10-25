@@ -9,7 +9,7 @@ filter and does not reload the page or change sensor monitoring.
 | Alerts | Latest 200 retained alerts, severity filter, full alert context and JSON export |
 | Reporting | 24-hour subtype counts, retained channel counts and the latest 100 observed frames |
 | Devices | Up to 200 most recently observed unicast MAC addresses from the last 24 hours, with AP/client/unknown classifications, evidence, directly advertised SSIDs, BSSID contexts, channels, last-seen UTC, frame counts and sensors |
-| BLE | BLE observation count for 24 hours, up to 200 advertiser address summaries and the latest 100 advertisements; clickable advertiser details |
+| BLE | 24-hour summaries, searchable/filterable advertiser explorer, evidence-based labels, protected aliases/notes and approximate RSSI curve; raw reports in expandable sections |
 
 Only the active tab's data is requested on the five-second refresh cadence.
 Switching tabs cancels obsolete dashboard requests. Pause updates freezes display
@@ -114,3 +114,14 @@ Counts reflect filtering, duplicate suppression, record/time retention and radio
 loss. Private addresses can rotate, so advertiser counts are not unique physical
 device counts. Empty tables can mean scanning is disabled, not that the area is
 empty. Check Configuration and Status. See [BLE setup and limits](BLE.md).
+
+### Advertiser explorer and curve
+
+Post-v1.2 #28/#29 improvements add readable labels, offline company/service names,
+public/random subtype indicators, search, address/alert filters and sorting.
+Select a label or identity selector for evidence, operator labels and the
+approximate distance-decay plot. Raw observations remain available in secondary
+expandable areas. The plot is controlled by reference RSSI, exponent, positive
+range bounds and median window; text mirrors the chart and marks uncalibrated,
+stale, missing and out-of-range cases. See [explorer](BLE_EXPLORER.md) and
+[ranging](BLE_RANGING.md) for identity, privacy and calibration limits.
