@@ -169,8 +169,9 @@ class Store:
                 "SELECT subtype,COUNT(*) count FROM frames WHERE timestamp >= ? GROUP BY subtype ORDER BY count DESC", (after,))]
         ble = self.rows('SELECT COUNT(*) AS count FROM ble_observations WHERE timestamp >= ?', (after,))[0]['count']
         ble_alerts = self.rows('SELECT COUNT(*) AS count FROM ble_alerts WHERE timestamp >= ?', (after,))[0]['count']
+        unique_ble = self.rows('SELECT COUNT(DISTINCT address) AS count FROM ble_observations WHERE timestamp >= ?', (after,))[0]['count']
         return {"frames_24h": frames, "alerts_24h": alerts + ble_alerts, "sensors": sensors,
-                "by_subtype": by_subtype, 'ble_observations_24h': ble}
+                "by_subtype": by_subtype, 'ble_observations_24h': ble, 'ble_unique_addresses_24h': unique_ble}
 
     def cleanup(self) -> None:
         before = (datetime.now(timezone.utc) - timedelta(days=self.retention_days)).isoformat(timespec="seconds")

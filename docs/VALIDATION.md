@@ -377,3 +377,31 @@ frames (2/10/100), chronological timestamps, channels, SSIDs, BSSID counts and
 persistence after redraw. Live 200-row checks verify ascending/descending frame
 sorting and mobile containment. Sorting acts on loaded rows without backend or
 sensor configuration changes.
+
+## Issue #33 — BLE unique-device metric
+
+Added a Unique devices card matching Capture Freshness styling. The API's
+`ble_unique_addresses_24h` counts distinct advertiser MAC addresses across
+sensors/address types over retained 24-hour observations, independent of table filters/caps.
+It does not merge identities using names, aliases, company data or RSSI and does
+not claim exact physical-device counts.
+
+124 collector tests pass, covering empty data, repeated reports, cross-sensor
+deduplication across address types, old observations and counts beyond the
+200-row UI limit. Browser checks cover matching styles, accessible descriptions,
+refresh/pause, independence from table filters and preserving the last metric
+value on refresh error. Fixed fixture time makes existing smoothing checks
+independent of browser execution speed.
+
+The live LAN aggregate reported 966 distinct addresses during the
+check. Four/two/one-card layouts were verified at 1920/768/390px with no page
+overflow or JavaScript errors. Only the collector service was restarted; sensor
+and host network settings were unchanged. Repository docs and wiki explain the
+metric definition and address-rotation limitations.
+
+MAC-only clarification: Unique devices now uses `COUNT(DISTINCT address)`,
+ignoring both sensor and public/random address type. One MAC with three
+sensor/type identities counts as one unique device in tests. A live snapshot
+showed 975 distinct MACs and 975 advertiser identities: equality is legitimate
+when each MAC has only one sensor/type combination. Collector tests (124) and
+both BLE browser checks pass with the corrected definition.

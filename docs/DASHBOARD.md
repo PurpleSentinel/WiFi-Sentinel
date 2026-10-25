@@ -176,3 +176,8 @@ count, channels by numeric sequence, and other columns by their displayed text
 or lists. Ties use MAC address for deterministic ordering. Sorting applies to the
 currently loaded rows (up to the most recent 200 for the role filter), not every
 retained database identity; the status line makes this scope explicit.
+
+The BLE summary's **Unique devices** card matches Capture Freshness and counts
+distinct advertiser MAC addresses across sensors and address types over 24 hours. It uses all
+retained observations, not the table cap or filters, and does not claim an exact
+physical-device count. See [metric definition](BLE_EXPLORER.md#unique-devices-metric).

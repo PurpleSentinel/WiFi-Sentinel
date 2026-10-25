@@ -183,3 +183,9 @@ these are retained advertisement/address counts, not unique physical devices.
 Alias/notes limits and persistence are in [BLE explorer](BLE_EXPLORER.md). Read
 endpoints remain unauthenticated. The [RSSI model](BLE_RANGING.md) runs locally
 on the selected identity's samples; it adds no RF commands or ranging API.
+
+`GET /api/summary` adds `ble_unique_addresses_24h`: the distinct BLE
+MAC-address-only count over retained observations in the last 24 hours,
+deduplicated across sensor IDs and address types. It is independent of device-list filters and
+limits. The UI calls this **Unique devices** with explicit address-rotation and
+physical-identity qualifications. No existing fields or protocol versions change.

@@ -142,3 +142,8 @@ attributed SIG snapshot; unknown identifiers remain numeric. Aliases/notes are
 key-protected, persist per sensor/address/type and do not follow address rotation.
 Model settings are session-only and per identity. Range estimates, name claims
 and company IDs are not evidence of physical identity or precise location.
+
+The BLE summary's **Unique devices** card matches Capture Freshness and counts
+distinct advertiser MAC addresses across sensors and address types over 24 hours. It uses all
+retained observations, not the table cap or filters, and does not claim an exact
+physical-device count. See [metric definition](BLE_EXPLORER.md#unique-devices-metric).
