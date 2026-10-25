@@ -36,7 +36,20 @@ sequenceDiagram
 4. A promiscuous management-frame callback checks subtype, copies key header fields, optionally extracts a beacon/probe SSID and queues a small fixed struct. No logging or blocking in RX callback.
 5. FreeRTOS export task serializes frames to a versioned ASCII `WIDS ` + JSON line protocol. A periodic heartbeat exposes queue drops. `WIFI_PKT_DATA` and `WIFI_PKT_CTRL` are not captured or exported.
 
-Sampled beacons mean beacon frequency counts are **not** a reliable detection metric. The counter is global across beacons and probe responses, not per BSSID. Protect against overload by tuning sample factor and queue drops.
+Sampled beacons mean beacon frequency counts are **not** a reliable detection
+metric. Sampling uses a fixed table of 64 BSSID/channel entries, each with
+independent beacon and probe-response counters. The first observation of a new
+entry/type is exported immediately, then one after each N further observations
+of that identity/type. At N=20 the selected positions are 1, 21, 41, and so on.
+This prevents periodic traffic from other APs or the other subtype from locking
+an AP out through a global counter phase.
+
+The callback owns this table, scans at most 64 entries, and performs no allocation,
+I/O or waiting in the sampler. When full, FIFO replacement resets the evicted
+entry's state: a returning identity is reported immediately. Churn can therefore
+increase exports above the steady-state one-in-N rate; the existing bounded
+telemetry queue and dropped counter remain essential. Sampling does not prevent
+RF/driver/USB loss or guarantee every varying SSID payload from one BSSID is seen.
 
 ## Collector components
 

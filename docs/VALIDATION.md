@@ -132,6 +132,27 @@ rendering produced a static logo, with no browser JavaScript errors.
   channel 6, sample factor 20 and 15-second heartbeat. No firmware flash, sensor
   settings or Pi network changes were required.
 
+### Bounded per-AP advertisement sampling — 2026-10-25
+
+- All 100 collector tests passed. Host-compiled simulations use the firmware's
+  actual sampler header. Four periodic AP streams at N=20 produced
+  `[50, 50, 50, 50]` across 4,000 events, instead of the original global-counter
+  result `[0, 0, 0, 200]`.
+- Checks cover independent beacon/probe and channel counters, factors 1–1000,
+  factor changes, unsampled management subtypes, and 100,000 unique-address churn
+  events. The fixed 64-entry state remained under 2 KiB in the host check;
+  evicted returning identities were immediately admitted.
+- Five Playwright checks passed, including sensor-reported sampling-mode display
+  in Configuration. The live dialog also showed the upgraded mode correctly.
+- ESP-IDF v5.5.4 built and flashed the C6 image (837,728 bytes, 20% app-partition
+  headroom). Capabilities reported `per_bssid_channel_subtype` and capacity 64.
+  All recorded sensor settings matched their pre-flash values: channel 6,
+  sampling N=20, heartbeat 15 seconds and sensor ID `c6-sensor-01`.
+- Live advertisements continued with zero reported queue drops. Only one BSSID
+  was active during the live check; multi-AP fairness was verified by the
+  deterministic host simulation, not an independent multi-AP RF experiment.
+- No Pi network or other USB ESP device settings were changed.
+
 ## What has NOT been validated
 
 - C5 compilation and hardware operation; only the C6 target has been built/flashed in this installation.

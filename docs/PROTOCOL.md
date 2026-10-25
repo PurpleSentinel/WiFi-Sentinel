@@ -57,6 +57,10 @@ field. See [SSID configuration and matching](CONFIGURATION.md).
 
 `dropped` counts events that failed to enqueue for USB export. This does *not* measure RF/driver packet losses. `captured` counts events selected for queueing (after beacon sampling). The dashboard displays dropped events from the most recent heartbeat.
 
+Sampling is per BSSID/channel with independent beacon/probe-response counters:
+first sighting, then one per N observations. Startup, new identities and bounded
+table eviction can increase the export rate above a global one-in-N estimate.
+
 ## USB configuration commands
 
 Runtime-capable firmware accepts bounded `WIDS_CMD ` JSON lines on the same USB
@@ -79,6 +83,10 @@ an `error` and retain the prior effective configuration. Success is acknowledged
 only after radio tuning and NVS commit. Requests have a maximum 767-byte body
 including the prefix; oversized lines are discarded through the next newline.
 Commands configure passive reception only, not RF transmissions.
+
+Upgraded firmware also reports `capabilities.beacon_sampling` as
+`per_bssid_channel_subtype` and `capabilities.beacon_sampling_capacity` as 64.
+These are read-only capability metadata, not additional editable settings.
 
 The collector validates patches, sends complete sensor settings, waits up to
 eight seconds for the matching acknowledgement, and queries configuration every
