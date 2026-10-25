@@ -118,6 +118,20 @@ rendering produced a static logo, with no browser JavaScript errors.
 - The Unicode alert check was synthetic and sent no RF traffic; this does not
   claim an independently captured live Unicode AP or extend C5/RF validation.
 
+### Recurring protected-SSID alerts — 2026-10-25
+
+- All 90 collector tests passed. Controlled-time tests verified suppression
+  within cooldown and renewed alerts exactly at expiry for beacon and probe
+  response sightings, including UTF-8 SSIDs.
+- Tests cover shared per-BSSID/channel cooldowns across advertised protected
+  names, independent channel/sensor cooldowns, returning APs, pruning, trusted /
+  unprotected exclusions, and protected checks outside the monitored-BSSID list.
+- A running API regression persisted repeated alerts without restarting the
+  detector and generated a new alert after earlier alert history expired.
+- The deployed LAN collector remained healthy with the original sensor ID,
+  channel 6, sample factor 20 and 15-second heartbeat. No firmware flash, sensor
+  settings or Pi network changes were required.
+
 ## What has NOT been validated
 
 - C5 compilation and hardware operation; only the C6 target has been built/flashed in this installation.

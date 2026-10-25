@@ -31,7 +31,6 @@ class Detector:
         self.settings = settings
         self.recent: dict[tuple, deque[tuple[float, str]]] = defaultdict(deque)
         self.last_alert: dict[tuple, float] = {}
-        self.seen_ssids: set[tuple] = set()
         self._last_prune = 0.0
 
     def observe(self, frame: Frame, now: float | None = None) -> list[Alert]:
@@ -50,14 +49,11 @@ class Detector:
 
         # SSID allowlisting does not depend on the monitored BSSID filter.
         if frame.subtype in {"beacon", "probe_resp"} and frame.ssid:
-            fingerprint = (frame.sensor_id, frame.bssid, frame.ssid_bytes)
-            if fingerprint not in self.seen_ssids:
-                self.seen_ssids.add(fingerprint)
-                if (matches_protected(frame.ssid_bytes, self.settings.protected_ssids)
-                        and frame.bssid not in self.settings.trusted_bssids):
-                    make("protected_ssid_untrusted_bssid", "high", 1,
-                         f"SSID {frame.ssid!r} advertised by non-allowlisted BSSID; investigate, not proof of evil twin",
-                         (frame.sa,))
+            if (frame.bssid not in self.settings.trusted_bssids
+                    and matches_protected(frame.ssid_bytes, self.settings.protected_ssids)):
+                make("protected_ssid_untrusted_bssid", "high", 1,
+                     f"SSID {frame.ssid!r} advertised by non-allowlisted BSSID; investigate, not proof of evil twin",
+                     (frame.sa,))
 
         if self.settings.monitored_bssids and frame.bssid not in self.settings.monitored_bssids:
             return alerts
