@@ -101,3 +101,20 @@ they are not merged into Wi-Fi AP/client roles. See [BLE monitoring](BLE.md).
 
 Wi-Fi storage remains header metadata; the BLE path additionally retains up to
 31 raw advertising-data bytes per observation, never connection payloads/PCAPs.
+
+## BLE explorer enrichment and model
+
+`ble_identity.py` caches an attributed offline company/service snapshot and
+produces evidence/provenance labels without online lookups or cross-address
+correlation. SQLite stores aliases/notes under a composite sensor/address/type
+key; bounded, authorized writes do not reset detection. A nullable local-name
+column plus partial named/identity indexes supports name preservation and
+sensor-specific history. Filtered list candidates are streamed before applying
+the result cap; full candidate sets are not retained in process memory.
+
+The selected-advertiser workspace requests up to 100 exact-identity samples.
+Its browser-side log-distance model validates inputs and recalculates curves,
+raw/median markers and accessible text locally, including while paused. Per-key
+model settings are session-only and bounded to 200 entries. No radio/firmware
+changes or active ranging are introduced. See [explorer](BLE_EXPLORER.md) and
+[distance model](BLE_RANGING.md).

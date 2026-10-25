@@ -14,6 +14,8 @@ from .device_roles import ROLE_LABELS
 from .engine import Engine, retention_loop, serial_loop
 from .runtime import LIMITS, LISTS, RESTART_FIELDS, configuration_key
 from .vendors import VendorLookup, normalize_mac
+from .models import SENSOR
+from .ble_identity import identify
 
 WEB_ROOT = Path(__file__).resolve().parent / "static"
 
@@ -132,20 +134,64 @@ def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
         return core.store.devices(limit, role)
 
     @app.get('/api/ble/observations')
-    def ble_observations(limit: int = 100, address: str | None = None, address_type: str | None = None):
+    def ble_observations(limit: int = 100, address: str | None = None, address_type: str | None = None, sensor_id: str | None = None):
         if not 1 <= limit <= 500 or address_type not in (None, 'public', 'random'):
             raise HTTPException(400, 'Invalid BLE limit or address type')
         try:
             address = normalize_mac(address) if address else None
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
-        return core.store.ble_observations(limit, address, address_type)
+        if sensor_id is not None and not SENSOR.fullmatch(sensor_id):
+            raise HTTPException(400, 'Invalid sensor identifier')
+        return core.store.ble_observations(limit, address, address_type, sensor_id)
 
     @app.get('/api/ble/devices')
-    def ble_devices(limit: int = 200):
+    def ble_devices(limit: int = 200, query: str = '', address_type: str = 'all', alert_only: bool = False, sort: str = 'recent'):
+        if len(query) > 200 or address_type not in ('all','public','random') or sort not in ('recent','rssi','name'):
+            raise HTTPException(400, 'Invalid BLE filter or sort')
         if not 1 <= limit <= 500:
             raise HTTPException(400, 'limit must be 1..500')
-        return core.store.ble_devices(limit)
+        return core.store.ble_devices(limit, query, address_type, alert_only, sort)
+
+    def ble_identity(sensor_id, address, address_type):
+        if not isinstance(sensor_id, str) or not SENSOR.fullmatch(sensor_id) or address_type not in ('public','random'):
+            raise ValueError('A sensor, advertiser address and public/random type are required')
+        return sensor_id, normalize_mac(address), address_type
+
+    @app.get('/api/ble/advertiser')
+    def ble_advertiser(sensor_id: str, address: str, address_type: str):
+        try:
+            sid, mac, kind = ble_identity(sensor_id, address, address_type)
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(400, str(exc)) from exc
+        rows = core.store.ble_observations(100, mac, kind, sid)
+        label = core.store.ble_label(sid, mac, kind)
+        summary = None
+        if rows:
+            named = core.store.rows("SELECT local_name,timestamp FROM ble_observations WHERE sensor_id=? AND address=? AND address_type=? AND local_name IS NOT NULL AND local_name!='' ORDER BY id DESC LIMIT 1", (sid,mac,kind))
+            summary = identify({**rows[0], **label, 'observed_name': named[0]['local_name'] if named else None})
+        return {'sensor_id':sid,'address':mac,'address_type':kind,'advertiser':summary,
+                'label':label,'observations':rows,'sample_limit':100}
+
+    @app.get('/api/ble/labels')
+    def ble_labels():
+        return core.store.rows('SELECT * FROM ble_labels ORDER BY updated_at DESC LIMIT 1024')
+
+    @app.post('/api/ble/label')
+    def ble_label(values: dict, request: Request):
+        authorize(request)
+        try:
+            if values.keys() - {'sensor_id','address','address_type','alias','notes'}:
+                raise ValueError('Unknown BLE label field')
+            sid, mac, kind = ble_identity(values.get('sensor_id'), values.get('address'), values.get('address_type'))
+            alias, notes = values.get('alias',''), values.get('notes','')
+            if not isinstance(alias,str) or len(alias)>80 or any(not c.isprintable() for c in alias):
+                raise ValueError('Alias must be up to 80 printable characters')
+            if not isinstance(notes,str) or len(notes)>1000 or any(not c.isprintable() and c not in '\n\t' for c in notes):
+                raise ValueError('Notes must be up to 1000 printable characters/newlines')
+            return core.store.save_ble_label(sid,mac,kind,alias.strip(),notes.strip())
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(400,str(exc)) from exc
 
     @app.get('/api/alert-sources')
     def alert_sources():

@@ -304,3 +304,36 @@ Reporting. The software-only BLE replay example was checked against the collecto
 parser/storage, and relative Markdown file links and changed-file checksums were
 verified. Documentation describes controlled-device and extended-advertisement
 validation as outstanding rather than claiming those tests passed.
+
+## Issues #28/#29 — BLE explorer and RSSI curve (post-v1.2)
+
+- **123 collector tests** and **seven browser checks** pass. The new coverage
+  exercises SIG company/service name decoding, unknown identifiers, label
+  precedence/provenance, random-address formats, exact sensor/address/type
+  separation, protected alias writes, persistence/deletion/caps, pre-limit
+  search/filter/sort and legacy BLE name backfill.
+- Browser checks exercise the selected-advertiser model with A=-59 dBm and n=2:
+  -59 dBm maps to 1 metre; -79 dBm maps to 10 metres. They also exercise median
+  smoothing, invalid/non-finite and missing inputs, stale/out-of-window samples,
+  out-of-plot estimates without clamping, independent per-identity model settings,
+  pause behavior, protected aliases, safe text and mobile layout.
+- The offline snapshot was retrieved from official Bluetooth SIG public YAML:
+  **4057 company IDs** and **76 standard service UUIDs**, with embedded retrieval
+  UTC, source URLs and raw-source digests. Unknown IDs remain numeric; names and
+  service/company labels are unverified claims, not model/owner identity.
+- Backed up the live collector database and restarted the service. Startup
+  migrated retained local-name evidence and created label storage. Existing
+  C6 firmware, saved Wi-Fi/BLE settings and Pi networking were not changed.
+- A live LAN browser loaded 200 capped advertiser summaries from roughly 803
+  identities at that moment, displayed readable evidence labels, selected an
+  exact identity and rendered an uncalibrated decay curve with its raw RSSI.
+  Desktop and 390 px mobile screenshots were visually inspected. No JavaScript
+  errors or mobile page overflow were observed.
+- This verifies software behavior and live presentation, **not physical ranging
+  accuracy**. No controlled RF calibration or distance-reference experiment was
+  performed. The initial A/n values are illustrative, and the measured-reference
+  checkbox is an operator assertion only. The model uses at most 100 retained,
+  possibly filtered/deduplicated samples, not an exhaustive RSSI stream.
+- Updated repository docs and hierarchical wiki cover the explorer, alias privacy,
+  registry provenance/maintenance, browser-session model controls and calibration
+  limits. These are post-v1.2 enhancements, not content in its original archive.

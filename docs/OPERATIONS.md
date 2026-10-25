@@ -110,3 +110,19 @@ Deleted SQLite pages are reusable; the file does not immediately shrink. Empty
 BLE alert rules disable BLE alerts, and empty observation filters accept all.
 Default scan interval/window are 100/20 ms; saved NVS values survive reboot.
 See [BLE controls, privacy and limitations](BLE.md).
+
+## Explorer labels, registry and ranging
+
+Collector startup adds a nullable `local_name` column and identity/name indexes
+to BLE observations, backfilling names once from retained raw bytes. It creates
+`ble_labels` without changing existing frames, sensor NVS or radio settings.
+Back up SQLite before upgrading. Aliases/notes survive observation retention;
+clear them explicitly (both fields empty), and use `/api/ble/labels` to find stale
+annotations. The label cap is 1024 identities.
+
+Search/filter/sort applies before the visible result cap; unknown identifiers
+remain explicit. Offline registry refresh is a maintainer action followed by
+collector restart, not a live RF lookup. Stale plots indicate the latest stored
+report is over 60 seconds old; filtered/deduplicated reports may not represent
+all advertising activity. Missing/odd range estimates are not proof of a sensor
+failure. Confirm calibration assumptions and read [ranging limits](BLE_RANGING.md).

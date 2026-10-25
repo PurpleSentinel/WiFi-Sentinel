@@ -164,3 +164,16 @@ firmware keeps Wi-Fi controls but shows BLE unavailable. An enabled scan is
 passive legacy LE 1M only. Increasing the scan window competes with Wi-Fi
 reception on the shared radio. Check **Status** for the effective scan state,
 then **BLE** after Devices for observations. See [BLE monitoring](BLE.md).
+
+## BLE operator labels and model controls
+
+The selected advertiser's alias/notes use the existing configuration key and
+same-origin write checks. They are stored in `ble_labels`, separate from
+`.settings.json`, and remain until explicitly cleared. Bounds: alias 80 printable
+characters, notes 1000 characters, at most 1024 identities. Read endpoints expose
+these annotations; protect access and backups. See [explorer](BLE_EXPLORER.md).
+
+RSSI reference/exponent, plot range, median window and calibration assertion are
+per-identity browser-session model inputs, not radio or collector policy settings.
+They require no key and disappear on reload. They do not affect Wi-Fi/BLE capture
+or make range estimates physically accurate. See [ranging controls](BLE_RANGING.md).

@@ -95,3 +95,11 @@ and channel. The common Alerts view/export includes them; raw observations live
 in **BLE** after Devices. A match is not proof of an attack, manufacturer or
 physical-device identity. Tune observation filters, cooldown and retention using
 [BLE settings](BLE.md), accounting for address rotation and shared-radio losses.
+
+## Explorer evidence is distinct from alert evidence
+
+Readable company/service labels, operator aliases and an RSSI model do not add
+new detection rules. The BLE-alert filter refers to retained BLE matches for the
+same sensor/address/type. Existing red source-address highlighting still applies
+across views. An approximate distance, familiar name or known company identifier
+must not be treated as proof of an actor or event. See [explorer](BLE_EXPLORER.md).

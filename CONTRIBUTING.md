@@ -26,3 +26,14 @@ cooldowns, retention, record caps and the dedicated BLE tab after Devices.
 Update [BLE documentation](docs/BLE.md), configuration/protocol docs and the
 validation log when behavior changes. Refresh checksums for changed files while
 preserving archive entries whose files are absent.
+
+## BLE explorer and ranging checks
+
+Maintain strict sensor/address/type separation for labels, samples and model
+settings. Label edits use the existing configuration authorization; raw/unknown
+identifiers and provenance must remain visible. Use the reviewed SIG refresh
+script and keep upstream attribution. Browser checks cover exact log-distance
+fixtures, medians, out-of-range/stale/missing data, aliases, filters, safe text,
+pause and mobile behavior. Mathematical correctness is not RF distance validation.
+Update [explorer](docs/BLE_EXPLORER.md), [ranging](docs/BLE_RANGING.md) and wiki
+pages when UI or model semantics change.

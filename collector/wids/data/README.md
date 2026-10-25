@@ -21,3 +21,19 @@ looks up random BLE addresses, even when their prefix bits look globally
 registered. Advertised BLE company IDs remain distinct from MAC attribution.
 See [BLE monitoring](../../../docs/BLE.md) and
 [lookup behavior](../../../docs/MAC_LOOKUP.md).
+
+## BLE company/service snapshot
+
+`ble-assigned-numbers.json` separately stores factual numeric-to-name assignments
+from official Bluetooth SIG public YAML. Its source URLs, UTC retrieval timestamp,
+record counts and raw-file SHA256 digests are embedded. The initial snapshot has
+4057 company IDs and 76 standard service UUIDs. Bluetooth SIG upstream notices,
+trademarks and terms apply to registry material; it is not relicensed under this
+repository's MIT source license. See the official [Assigned Numbers](https://www.bluetooth.com/specifications/assigned-numbers/)
+and linked YAML for original notices. These facts do not establish model/owner
+identity or confirm the advertising hardware manufacturer.
+
+Refresh with `python scripts/update-ble-assigned-numbers.py` after installing
+PyYAML in a maintenance environment. The running collector reads JSON offline;
+unknown/custom IDs remain numeric. Restart after a reviewed refresh and update
+checksums. See [explorer provenance](../../../docs/BLE_EXPLORER.md).

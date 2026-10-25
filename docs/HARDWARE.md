@@ -81,3 +81,11 @@ Live BLE reports, enable/disable and reboot persistence were exercised on this
 C6, but controlled-device identity verification and long RF soak tests remain
 outstanding. Do not infer support for extended advertisements, Bluetooth Classic
 or untested C5 BLE hardware. See [BLE limits](BLE.md) and [validation](VALIDATION.md).
+
+## Collector-side BLE explorer additions
+
+Post-v1.2 identification/layout and RSSI-curve enhancements require an updated
+collector/dashboard, not a new sensor image or host Bluetooth stack. Preserve
+the current USB device, Wi-Fi channel and Pi network configuration. Review
+[BLE explorer](BLE_EXPLORER.md) and [approximate ranging](BLE_RANGING.md).
+No physical calibration accuracy or new RF capability is implied.

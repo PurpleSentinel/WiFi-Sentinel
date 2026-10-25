@@ -46,3 +46,14 @@ MIT source-code license. No observed full MAC is sent to the enrichment service.
 Project behavior, supported legacy advertisements, raw-data interpretation and
 numeric company identifiers are documented in [BLE monitoring](BLE.md). The
 local MAC prefix registry is not a Bluetooth company-identifier dataset.
+
+## Readable BLE identifiers
+
+- [Bluetooth SIG Assigned Numbers](https://www.bluetooth.com/specifications/assigned-numbers/) links the official registry sources and notices.
+- [Official company identifier YAML](https://bitbucket.org/bluetooth-SIG/public/raw/HEAD/assigned_numbers/company_identifiers/company_identifiers.yaml).
+- [Official standard service UUID YAML](https://bitbucket.org/bluetooth-SIG/public/raw/HEAD/assigned_numbers/uuids/service_uuids.yaml).
+
+The explorer's offline snapshot records retrieval time and source digests.
+Registry facts are separate from MAC registration and device/owner identity.
+The RSSI distance curve is the documented mathematical model in [ranging](BLE_RANGING.md),
+not a physical accuracy claim derived from those identifier registries.

@@ -159,3 +159,27 @@ and `/api/frames` remain Wi-Fi-only. Observation records include decoded
 `service_data` (UUID and raw data) and `ad_malformed`, alongside the canonical
 `payload_hex`. BLE device summaries add first/last seen and observation counts;
 these are retained advertisement/address counts, not unique physical devices.
+
+## BLE explorer APIs (post-v1.2)
+
+- `GET /api/ble/devices?limit=200&query=...&address_type=all&alert_only=false&sort=recent`:
+  `query` up to 200 characters searches labels/notes, addresses/sensors, service
+  and company names/IDs. Types: all/public/random; sort: recent/rssi/name.
+  Filtering precedes the 1–500 result limit. Response adds `total_identities`
+  (unfiltered 24-hour sensor/address/type count), `limit`, `query`, and enriched
+  `display_label`, `label_source`, `advertised_name`, `category`, `address_subtype`,
+  `company_details`, `service_details`, `identity_confidence` and `alert_associated`.
+- `GET /api/ble/observations` accepts optional `sensor_id` in addition to address/type.
+- `GET /api/ble/advertiser?sensor_id=...&address=...&address_type=random` requires
+  the complete identity. Returns evidence, label and up to 100 latest retained
+  observations from that identity only. Empty history returns a null advertiser.
+- `GET /api/ble/labels` lists up to 1024 persistent operator labels, including
+  identities whose observations have expired.
+- `POST /api/ble/label` requires `X-Configuration-Key`, matching Origin and JSON
+  fields `sensor_id`, `address`, `address_type`, `alias`, `notes`. Unknown fields
+  or invalid text/identity return 400. Empty alias and notes delete the record.
+  These writes do not reset detector windows or change sensor settings.
+
+Alias/notes limits and persistence are in [BLE explorer](BLE_EXPLORER.md). Read
+endpoints remain unauthenticated. The [RSSI model](BLE_RANGING.md) runs locally
+on the selected identity's samples; it adds no RF commands or ranging API.
