@@ -10,9 +10,23 @@ This system counts **observed 802.11 management frames**. It does not verify tha
 | `disassoc_flood` | subtype 10 | sensor / BSSID / channel | >=20 in 10s | Unexpected disassociation burst |
 | `auth_flood` | subtype 11 | sensor / BSSID / channel | >=40 in 10s | Elevated 802.11 authentication traffic |
 | `failed_auth_burst` | auth/assoc-response with nonzero status | sensor / BSSID / channel | >=12 in 10s | Repeated unsuccessful 802.11 management exchanges |
-| `protected_ssid_untrusted_bssid` | sampled beacon/probe-response with protected SSID and unknown BSSID | sensor / BSSID / channel / rule | First sighting, 60s cooldown | Needs allowlist review; possible spoofed SSID |
+| `protected_ssid_untrusted_bssid` | sampled beacon/probe-response with protected SSID and unknown BSSID | sensor / BSSID / channel / rule | First matching sighting, then next match after 60s cooldown | Needs allowlist review; possible spoofed SSID |
 
 All counts include retransmissions and potentially spoofed MACs. A `deauth_flood` can be triggered by unusual but legitimate roaming/disconnect behaviour. A `failed_auth_burst` concerns 802.11 management responses, **not WPA/SAE wrong-passphrase results**; correlate with your access point logs for that use case.
+
+Protected-SSID checks run on every sampled matching advertisement, without a
+permanent first-sighting cache. Repeated matches within the configured cooldown
+are suppressed; a match at or after expiry can alert again without restarting
+the collector. A returning AP can therefore generate another alert even after
+the previous database alert has expired. No alert is generated just because
+time passes: another matching frame must be observed.
+
+Cooldowns are per sensor/BSSID/channel/rule. Beacons, probe responses and different
+protected names advertised by the same BSSID on the same channel share that rule
+cooldown. A different channel or sensor has an independent cooldown; returning
+to the original channel within its cooldown remains suppressed. Trusted BSSIDs
+and unprotected names do not trigger this rule. The monitored-BSSID filter for
+volume rules does not disable protected-SSID checks elsewhere.
 
 ## Protected Management Frames (PMF)
 
