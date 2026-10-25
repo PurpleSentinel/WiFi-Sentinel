@@ -4,9 +4,9 @@
 
 ![Status](https://img.shields.io/badge/status-prototype-orange) ![Python](https://img.shields.io/badge/Python-3.10%2B-blue) ![Firmware](https://img.shields.io/badge/ESP--IDF-5.5.2%2B-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
-> **Tested hardware:** ESP32-C6 revision v0.0 with native USB Serial/JTAG, connected to a Raspberry Pi 4 Model B Rev 1.2. ESP-IDF v5.5.4 build/flash, live 2.4 GHz telemetry, runtime channel switching and persistence have been exercised. The exact sensor board product/PCB and antenna remain unidentified. Optional C5/5 GHz support is unvalidated; the connected C6 is **2.4 GHz only**. See [hardware evidence](docs/HARDWARE.md) and [validation limits](docs/VALIDATION.md).
+> **Tested hardware:** ESP32-C6 revision v0.0 with native USB Serial/JTAG, connected to a Raspberry Pi 4 Model B Rev 1.2. ESP-IDF v5.5.4 build/flash, live 2.4 GHz Wi-Fi and passive BLE advertisements, runtime controls and reboot persistence have been exercised. The exact sensor board product/PCB and antenna remain unidentified. Optional C5/5 GHz support is unvalidated; the connected C6 is **2.4 GHz only**. See [hardware evidence](docs/HARDWARE.md) and [validation limits](docs/VALIDATION.md).
 
-WiFi Sentinel captures a small set of **802.11 management-frame metadata** passively, reports events via USB serial, and applies explainable anomaly rules in a Python collector. It does **not** inject frames, disconnect clients, attempt logins, crack passwords, decode user traffic, or perform countermeasures.
+WiFi Sentinel passively captures **802.11 management-frame metadata** and optional **Bluetooth Low Energy advertisements**, reports events via USB serial, and applies explainable rules in a Python collector. It does **not** inject frames, disconnect clients, attempt logins, crack passwords, decode user traffic, or perform countermeasures.
 
 ## Scope
 
@@ -16,6 +16,9 @@ WiFi Sentinel captures a small set of **802.11 management-frame metadata** passi
 | Authentication/association monitoring | Implemented in source | 802.11 management status, not WPA password success |
 | Fixed-channel 2.4 GHz selection | Tested on C6 | One channel at a time; optional C5/5 GHz path is unvalidated |
 | Protected SSID / unfamiliar BSSID alert | Implemented | Heuristic; configured allowlists needed |
+| Passive legacy BLE advertisements | Tested on C6 | Optional passive LE 1M scan, raw AD bytes, names, services and manufacturer data; shared radio limits simultaneous coverage |
+| BLE filters, alerts and retention | Implemented and tested | Exact rules, bounded duplicate/cooldown caches and independent record/time limits |
+| Dedicated BLE dashboard tab | Implemented and tested | After Devices; 24-hour count, advertiser summaries, latest advertisements and clickable details |
 | Sensor IDs and replay | Implemented | One live USB port per collector process; multi-port fan-in is a roadmap item |
 | Local web UI / API / SQLite | Implemented | Localhost binding, no login interface |
 | Synthetic demonstration and deterministic tests | Implemented | No RF attacks generated |
@@ -38,8 +41,9 @@ wifi-sentinel demo
 wifi-sentinel serve
 ```
 
-Open **http://127.0.0.1:8181**. The synthetic dataset exercises authentication,
+Open **http://127.0.0.1:8181**. The synthetic dataset exercises Wi-Fi authentication,
 deauthentication, disassociation and unsuccessful authentication-response rules.
+For a software-only BLE example, see [BLE replay](docs/BLE.md#software-only-example).
 
 Run tests:
 
@@ -59,6 +63,11 @@ The tested sensor is an ESP32-C6, with native USB Serial/JTAG and 2.4 GHz captur
 6. Verify `WIDS` heartbeats and sampled beacons, then stop the serial monitor.
 7. Configure `WIDS_SERIAL_PORT` with the same by-ID path and start the collector. This installation's other ESP currently uses `/dev/ttyACM0`; do not flash or open it.
 
+8. For BLE, upgrade the collector before the firmware, open **Configuration**,
+   enter the configuration key, enable BLE and apply sensor settings. Check
+   **Status**, then open **BLE** to the right of Devices. New sensors default to
+   BLE disabled; saved NVS values override that default. See [BLE setup](docs/BLE.md).
+
 The source also includes optional C5/5 GHz support; it has not been hardware-validated and is not the connected sensor.
 
 See **[Firmware](firmware/README.md)**, **[Fedora setup](docs/FEDORA_SETUP.md)**, **[Pi setup](docs/RASPBERRY_PI.md)** and **[Validation](docs/VALIDATION.md)**.
@@ -69,15 +78,22 @@ See **[Firmware](firmware/README.md)**, **[Fedora setup](docs/FEDORA_SETUP.md)**
 flowchart TD
   RF[Nearby 802.11 management frames] --> SENSOR[ESP32-C6 promiscuous RX]
   SENSOR -->|bounded FreeRTOS queue| EXPORT[USB serial NDJSON telemetry]
+  BLE[Nearby BLE advertisements] --> SCAN[Optional C6 passive BLE scan]
+  SCAN -->|separate bounded queue| EXPORT
   EXPORT -->|WIDS v1 messages| READ[Python serial reader]
   READ --> VALIDATE[Protocol validation]
   VALIDATE --> DETECT[Sliding-window IDS rules]
-  DETECT --> DB[(SQLite metadata + alerts)]
+  VALIDATE --> BLEPOLICY[BLE filters, deduplication and match rules]
+  BLEPOLICY --> DB[(SQLite observations + alerts)]
+  DETECT --> DB
   DB --> API[FastAPI dashboard API]
   API --> UI[Vanilla JS local dashboard]
 ```
 
-The radio is **receive-only by application design**: firmware configures STA mode but never joins a network. Monitoring a network does not require its Wi-Fi password. No captured packet payloads, handshake secrets or credentials are persisted. The single radio cannot observe multiple channels simultaneously. Two sensors on two channels provide better continuity than hopping across both.
+The radio is **receive-only by application design**: firmware configures STA mode but never joins a network. Monitoring a network does not require its Wi-Fi password. Wi-Fi user-packet payloads, handshake secrets and credentials are not persisted.
+BLE observations retain up to 31 raw advertising-data bytes, which can include
+names, service identifiers and manufacturer data. Wi-Fi and BLE share the C6
+radio; simultaneous capture is best effort, not reliable full coverage. The single radio cannot observe multiple channels simultaneously. Two sensors on two channels provide better continuity than hopping across both.
 
 ## Repository map
 
@@ -85,6 +101,7 @@ The radio is **receive-only by application design**: firmware configures STA mod
 wifi-sentinel/
 ├── firmware/                 ESP-IDF C6 receiver; optional C5 target
 │   ├── main/main.c           Frame parsing, beacon sampling, queue, NDJSON
+│   ├── main/ble_monitor.c    Passive BLE scanner, bounded queue and counters
 │   └── main/Kconfig.projbuild Band, channel, sensor ID, heartbeat
 ├── collector/
 │   ├── wids/                 Protocol, detection engine, storage, CLI, API
@@ -107,16 +124,24 @@ wifi-sentinel/
 - `auth_flood`: default 40 observed authentication frames / 10 seconds.
 - `failed_auth_burst`: default 12 nonzero 802.11 authentication/association *status codes* / 10 seconds. **Not equivalent to detecting WPA password-guessing**.
 - `protected_ssid_untrusted_bssid`: received beacon/probe response advertises one of your protected SSIDs from a BSSID not in your trusted allowlist. Could be a legitimate new AP; investigate before attributing.
+- `ble_match`: optional exact name, advertiser address, service UUID or company-ID
+  rule; disabled until configured. Cooldown applies per sensor and BLE rule,
+  across advertiser addresses. A match is an observation, not proof of an attack.
 
-All defaults are tunable environment variables, with 60-second repeat-alert cooldowns. No automated response. See [Detection design](docs/DETECTION.md).
+Collector policy has environment defaults and persistent Configuration controls,
+with 60-second repeat-alert cooldowns by default. BLE radio enable and timing are
+sensor settings saved in NVS. No automated response. See [Detection design](docs/DETECTION.md).
 
 ## Responsible scope and data handling
 
-Only monitor networks for which you have authority. 802.11 frame metadata contains MAC addresses and SSIDs and may be personal information. Retain only what you need, secure the Pi filesystem, and avoid sharing raw logs publicly. SQLite data and alerts expire after 7 days by default; attached sensor identity and last-seen information persists until removed. **Dashboard reads have no authentication; configuration writes require a key** and intentionally binds to `127.0.0.1` unless explicitly changed. Use SSH forwarding or a properly protected reverse proxy for remote access. See [Security](SECURITY.md).
+Only monitor networks for which you have authority. Wi-Fi metadata and BLE advertisements contain addresses, names and potentially
+identifying service/manufacturer data and may be personal information. Retain only what you need, secure the Pi filesystem, and avoid sharing raw logs publicly. Wi-Fi and BLE observations/alerts expire after 7 days by default, with independent
+BLE retention and a 100,000-record cap per BLE table; attached sensor identity and last-seen information persists until removed. **Dashboard reads have no authentication; configuration writes require a key** and intentionally binds to `127.0.0.1` unless explicitly changed. Use SSH forwarding or a properly protected reverse proxy for remote access. See [Security](SECURITY.md).
 
 ## Documentation
 
 - [Dashboard tabs, device observations and animation](docs/DASHBOARD.md)
+- [BLE monitoring, setup, rules and shared-radio limits](docs/BLE.md)
 - [Clickable MACs, vendor details and red alert sources](docs/MAC_LOOKUP.md)
 - [Dashboard Configuration and Status dialogs](docs/CONFIGURATION.md)
 
@@ -135,3 +160,12 @@ Only monitor networks for which you have authority. 802.11 frame metadata contai
 ## Version and contributions
 
 **Release v1.1.0** (hardware validation remains at prototype scope), MIT licensed. Contributions welcome via PR; run unit tests, review changes for passive-only operation, and document real hardware test results. Run the Python and browser checks locally; no GitHub CI checks were reported for recent PRs. Firmware compilation is a separate manual validation task because the current archive does not bundle the ESP-IDF toolchain.
+
+## Bluetooth Low Energy monitoring
+
+Open **BLE** after **Devices** for its 24-hour observation count, advertiser
+summaries and latest advertisements. **Devices** and **Reporting** show Wi-Fi
+data. Configuration and Status cover both radios; Alerts includes optional BLE
+rule matches. Passive legacy LE 1M scanning excludes Bluetooth Classic, extended
+advertisements and active scan responses. Random BLE addresses are not submitted
+for MAC vendor lookup. See [BLE configuration, limits and interpretation](docs/BLE.md).

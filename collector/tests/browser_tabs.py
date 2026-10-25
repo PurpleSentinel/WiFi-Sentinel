@@ -42,7 +42,8 @@ class DashboardTabs(unittest.TestCase):
                    'channel': 6, 'frame_count': 20, 'details': 'Observed burst'}
                   for severity in ('high', 'medium')]
         data = {
-            'health': {'serial_enabled': True},
+            'ble/observations?limit=100': [], 'ble/devices?limit=200': {'devices': [], 'has_more': False},
+                    'health': {'serial_enabled': True},
             'alert-sources': {'macs': [], 'legacy_alerts_without_sources': 0},
             'summary': {'frames_24h': 12, 'alerts_24h': 2, 'sensors': 1,
                         'by_subtype': [{'subtype': 'beacon', 'count': 12}]},
@@ -86,7 +87,7 @@ class DashboardTabs(unittest.TestCase):
     def test_tabs_polling_pause_filters_and_dialogs(self):
         page = self.page
         self.assertEqual(page.get_by_role('tab').all_text_contents(),
-                         ['Overview', 'Alerts', 'Reporting', 'Devices'])
+                         ['Overview', 'Alerts', 'Reporting', 'Devices', 'BLE'])
         self.assertEqual(page.get_by_role('tab', selected=True).inner_text(), 'Overview')
         self.assertNotIn('devices?limit=200', self.calls)
         self.assertNotIn('frames?limit=100', self.calls)
@@ -119,7 +120,7 @@ class DashboardTabs(unittest.TestCase):
         with page.expect_download() as download:
             page.get_by_role('button', name='Export alert JSON').click()
         self.assertEqual(download.value.suggested_filename, 'wifi-sentinel-alerts.json')
-        for name in ('Overview', 'Alerts', 'Reporting', 'Devices'):
+        for name in ('Overview', 'Alerts', 'Reporting', 'Devices', 'BLE'):
             self.select(name)
             page.get_by_role('button', name='Status', exact=True).click()
             page.get_by_text('No connected or simulated sensors', exact=True).wait_for()
@@ -134,8 +135,8 @@ class DashboardTabs(unittest.TestCase):
         page = self.page
         page.get_by_role('tab', name='Overview', exact=True).focus()
         page.keyboard.press('End')
-        page.wait_for_function("document.querySelector('#panel-devices').getAttribute('aria-busy') === 'false'")
-        self.assertEqual(page.locator(':focus').inner_text(), 'Devices')
+        page.wait_for_function("document.querySelector('#panel-ble').getAttribute('aria-busy') === 'false'")
+        self.assertEqual(page.locator(':focus').inner_text(), 'BLE')
         page.keyboard.press('Home')
         self.assertEqual(page.locator(':focus').inner_text(), 'Overview')
         page.keyboard.press('ArrowRight')
@@ -157,7 +158,7 @@ class DashboardTabs(unittest.TestCase):
         self.select('Alerts')
         self.assertIn('No matching alerts', page.locator('#alert-rows').inner_text())
         page.set_viewport_size({'width': 390, 'height': 844})
-        for name in ('Overview', 'Alerts', 'Reporting', 'Devices'):
+        for name in ('Overview', 'Alerts', 'Reporting', 'Devices', 'BLE'):
             self.select(name)
             self.assertTrue(page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
         self.assertEqual(self.errors, [])

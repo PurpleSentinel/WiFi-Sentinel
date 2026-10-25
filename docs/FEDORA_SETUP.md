@@ -104,3 +104,27 @@ python -m compileall -q wids
 # Optional after installing ruff:
 ruff check wids tests
 ```
+
+## Enable BLE and use its dashboard tab
+
+BLE scanning runs on the USB ESP32-C6, not the host Bluetooth adapter. It needs
+no BlueZ service, Pi wireless reconfiguration or additional serial device. Leave
+unrelated ESP hardware and the host's Ethernet/Wi-Fi settings unchanged.
+
+1. Upgrade the collector before flashing BLE-capable sensor firmware.
+2. Stop the collector, build with the supplied NimBLE/coexistence defaults and
+   flash the complete generated image set, including the enlarged app partition
+   table. Preserve NVS and use only the verified C6 by-ID port.
+3. Restart the collector. Open Configuration, enter its existing key, enable BLE
+   and apply sensor settings. New sensors start with BLE disabled; saved settings
+   override the defaults. Interval/window default to 100/20 ms.
+4. Check Status for passive scanning, report/drop counts and error 0. Open **BLE**
+   immediately after Devices for advertiser summaries and recent advertisements.
+5. Set BLE observation filters, optional alert rules and independent retention/
+   record limits in Configuration. The software-only `demo` generates Wi-Fi data;
+   use the [BLE replay example](BLE.md#software-only-example) for BLE UI testing.
+
+The C6 shares its radio between Wi-Fi sniffing and BLE scanning; captures are
+best effort. The existing collector supports one live USB input. For reliable
+simultaneous coverage, use separate sensors/collectors. See [BLE monitoring](BLE.md)
+and [operations](OPERATIONS.md) for privacy, limits and troubleshooting.

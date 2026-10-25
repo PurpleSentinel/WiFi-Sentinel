@@ -6,6 +6,7 @@ from dataclasses import asdict, replace
 from pathlib import Path
 
 from .config import Settings
+from .ble import rule
 from .models import MAC
 from .ssids import protected_name
 
@@ -13,9 +14,10 @@ LIMITS = {
     'window_seconds': (1, 3600), 'deauth_threshold': (1, 1000000),
     'disassoc_threshold': (1, 1000000), 'auth_threshold': (1, 1000000),
     'failed_auth_threshold': (1, 1000000), 'cooldown_seconds': (1, 86400),
-    'retention_days': (1, 3650),
+    'retention_days': (1, 3650), 'ble_retention_days': (1, 3650),
+    'ble_duplicate_seconds': (0, 3600), 'ble_max_records': (100, 1000000),
 }
-LISTS = ('monitored_bssids', 'protected_ssids', 'trusted_bssids')
+LISTS = ('monitored_bssids', 'protected_ssids', 'trusted_bssids', 'ble_filters', 'ble_alert_rules')
 RESTART_FIELDS = ('database', 'host', 'port', 'serial_port', 'baud')
 
 
@@ -37,17 +39,22 @@ def validate_collector(values: dict) -> dict:
                 raise ValueError(f'{name} must be a list of up to 256 values')
             if any(not isinstance(v, str) for v in value):
                 raise ValueError(f'{name} entries must be strings')
-            if name == 'protected_ssids':
+            if name in ('ble_filters', 'ble_alert_rules'):
+                for item in value:
+                    rule(item)
+            elif name == 'protected_ssids':
                 for item in value:
                     protected_name(item)
             elif any(not MAC.fullmatch(v) for v in value):
                 raise ValueError(f'{name} contains an invalid MAC address')
-            value = tuple(v if name == 'protected_ssids' else v.lower() for v in value)
+            value = tuple(v if name in ('protected_ssids', 'ble_filters', 'ble_alert_rules') else v.lower() for v in value)
         result[name] = value
     return result
 
 
 def load_settings(settings: Settings) -> Settings:
+    validate_collector({name: list(getattr(settings, name)) if name in LISTS else getattr(settings, name)
+                        for name in (*LIMITS, *LISTS) if name.startswith('ble_')})
     path = settings_path(settings)
     if path.exists():
         return replace(settings, **validate_collector(json.loads(path.read_text())))

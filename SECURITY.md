@@ -6,11 +6,20 @@ WiFi Sentinel is a **passive security observation** prototype for wireless netwo
 
 ## Threat model
 
-**Assets:** RF observations, sensor identifiers, local workstation/Pi, MAC/BSSID identifiers, SSIDs, timestamps, alerts, analyst decisions.
+**Assets:** RF observations, sensor identifiers, local workstation/Pi, MAC/BSSID and BLE advertiser identifiers, SSIDs, BLE names/services/manufacturer
+data, raw advertising bytes, timestamps, alerts, analyst decisions.
 
-**Trust boundaries:** untrusted 802.11 air interface -> ESP RX driver/parser -> USB device/serial event stream -> collector validator -> SQLite -> web API/browser. Attackers may forge management frames, impersonate BSSIDs/SSIDs, flood capture queues, tamper with hardware, or cause serial corruption.
+**Trust boundaries:** untrusted Wi-Fi/BLE air interfaces -> ESP receive driver
+and advertisement parser -> USB device/serial event stream -> collector validator
+-> SQLite -> web API/browser. Attackers may forge management frames or BLE advertisements, impersonate
+addresses/names/services, rotate BLE addresses, flood capture queues, tamper with
+hardware, or cause serial corruption.
 
-**Controls implemented:** bounded on-device queue, mgmt-only frame selection, no captured raw data packets, explicit validation of incoming events, no SQL string interpolation for event content, local-only web binding, default 7-day frame/alert retention, passive-only code path, synthetic test mode.
+**Controls implemented:** bounded Wi-Fi and BLE queues, management-only Wi-Fi
+selection, up to 31 raw BLE advertising-data bytes, strict event validation,
+parameterized event queries, loopback web binding by default, default 7-day
+observation/alert retention, independent BLE record caps and bounded caches,
+passive-only radio paths, and synthetic test mode.
 
 **Limitations / residual risk:** physical USB ports are untrusted input; telemetry is **not cryptographically authenticated**; valid-looking malicious events could mislead analysts. Dashboard has **no login/role-based access controls or TLS**. Database unencrypted by app (rely on encrypted host storage/permissions). No signed firmware/secure boot configuration supplied. No authenticated OTA updates. The app is intended for a trusted single-user machine, not an internet-facing service.
 
@@ -27,7 +36,8 @@ SSH forwarding when the network is not trusted; see
 - Do not set `WIDS_HOST=0.0.0.0` without adding authentication, network isolation and transport security.
 - Keep the Pi and ESP-IDF/toolchains updated from trusted sources and review dependency changes.
 - Protect the UI/host from a malicious USB device; only attach trusted hardware and monitor operating-system logs.
-- Retain minimal identifiable data; MAC addresses, SSIDs and times may identify people/locations/devices. Establish a lawful basis and privacy notice if relevant.
+- Retain minimal identifiable data; Wi-Fi/BLE addresses, names, service/manufacturer data and times may identify
+  people, locations or devices. Establish a lawful basis and privacy notice if relevant.
 - Review false-positive and false-negative cases. Deauthentication reason codes and MAC addresses are not authenticated proof of an actor.
 - No active containment is included; route alerts to human investigation.
 
@@ -40,6 +50,20 @@ Open a private security advisory in your own GitHub fork/repository or contact t
 Vendor lookup uses an attributed local prefix snapshot plus bounded, cached
 MACLookup requests containing only a 24-bit vendor prefix. No observed full MAC,
 SSID or alert is uploaded. Local/administered addresses are not queried as
-hardware-vendor identities. See [lookup privacy and limitations](docs/MAC_LOOKUP.md).
+hardware-vendor identities. Random BLE addresses never trigger a vendor request
+from the BLE dialog, even if their prefix bits resemble a registered MAC.
+Bluetooth company IDs are not resolved using the MAC registry. See [lookup privacy and limitations](docs/MAC_LOOKUP.md).
 
-The Python package uses broad compatible semver ranges rather than a lockfile in this prototype. For deployment, lock vetted dependency versions, record SHA256 hashes, enable dependabot/renovate only with code review, and scan SBOMs. Firmware toolchain needs installation from official Espressif channels. GitHub Actions checks Python behavior only, not firmware binary compilation.
+The Python package uses broad compatible semver ranges rather than a lockfile in this prototype. For deployment, lock vetted dependency versions, record SHA256 hashes, enable dependabot/renovate only with code review, and scan SBOMs. Firmware toolchain needs installation from official Espressif channels. Recent PRs reported no configured GitHub CI checks; run collector/browser tests
+locally and compile firmware separately.
+
+## BLE-specific privacy and coverage
+
+Passive scanning does not pair, connect, advertise or transmit scan requests.
+Legacy advertisements can still contain persistent identifiers, names and
+manufacturer/service data; the retained raw bytes are exposed by unauthenticated
+read endpoints and included in backups. Apply the BLE retention/record limits,
+restrict dashboard access and redact exported observations before sharing.
+BLE private addresses rotate and public addresses can be spoofed; neither a rule
+match nor a company identifier proves a device's owner or identity. The C6 shared
+radio can miss Wi-Fi and BLE traffic. See [BLE monitoring](docs/BLE.md).

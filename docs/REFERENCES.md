@@ -37,3 +37,12 @@ The bundled MACLookup data is attributed to that provider, not represented as a
 direct IEEE download. IEEE downloads were unavailable to this build host. Public
 registry facts remain subject to the provider's terms rather than the project's
 MIT source-code license. No observed full MAC is sent to the enrichment service.
+
+## BLE monitoring and shared-radio coexistence
+
+- [ESP-IDF v5.5.4 C6 RF coexistence](https://docs.espressif.com/projects/esp-idf/en/v5.5.4/esp32c6/api-guides/coexist.html): Wi-Fi sniffer RX and BLE scanning are classified as supported with unstable performance on the shared RF path.
+- The tested toolchain's `examples/bluetooth/nimble/blecent/main/main.c` demonstrates NimBLE initialization and passive discovery parameters. This project's observer omits the example's connection/GATT behavior.
+
+Project behavior, supported legacy advertisements, raw-data interpretation and
+numeric company identifiers are documented in [BLE monitoring](BLE.md). The
+local MAC prefix registry is not a Bluetooth company-identifier dataset.

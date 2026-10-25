@@ -7,6 +7,7 @@ from dataclasses import replace
 from typing import Any
 
 from .config import Settings
+from .ble import Advertisement, BLEPolicy
 from .detection import Detector
 from .models import Frame, parse_wire_line
 from .runtime import load_settings, save_settings, validate_collector
@@ -21,7 +22,9 @@ class Engine:
     def __init__(self, settings: Settings):
         settings = load_settings(settings)
         self.settings = settings
-        self.store = Store(settings.database, settings.retention_days)
+        self.store = Store(settings.database, settings.retention_days,
+                           settings.ble_retention_days, settings.ble_max_records)
+        self.ble = BLEPolicy()
         self.detector = Detector(settings)
         self.lock = threading.Lock()
         self.processed = 0
@@ -36,6 +39,9 @@ class Engine:
             # Existing windows have the old policy; start new windows on apply.
             self.detector = Detector(settings)
             self.store.retention_days = settings.retention_days
+            self.store.ble_retention_days = settings.ble_retention_days
+            self.store.ble_max_records = settings.ble_max_records
+            self.ble = BLEPolicy()
             self.store.cleanup()
 
     def ingest(self, event: dict[str, Any]) -> bool:
@@ -43,6 +49,10 @@ class Engine:
             if event.get("kind") == "frame":
                 frame = Frame.from_json(event)
                 self.store.add_frame(frame, self.detector.observe(frame))
+            elif event.get('kind') == 'ble':
+                ad = Advertisement.from_json(event)
+                accept, matches = self.ble.observe(ad, self.settings, time.monotonic())
+                self.store.add_ble(ad, accept, matches)
             elif event.get("kind") == "heartbeat":
                 self.store.heartbeat(str(event["sensor_id"]), int(event.get("channel", 0)),
                                      int(event.get("uptime_ms", 0)), int(event.get("dropped", 0)))

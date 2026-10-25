@@ -1,6 +1,6 @@
 # Dashboard views
 
-The main dashboard has four tabs. Switching views preserves the selected alert
+The main dashboard has five tabs. Switching views preserves the selected alert
 filter and does not reload the page or change sensor monitoring.
 
 | Tab | Content |
@@ -9,6 +9,7 @@ filter and does not reload the page or change sensor monitoring.
 | Alerts | Latest 200 retained alerts, severity filter, full alert context and JSON export |
 | Reporting | 24-hour subtype counts, retained channel counts and the latest 100 observed frames |
 | Devices | Up to 200 most recently observed unicast MAC addresses from the last 24 hours, with AP/client/unknown classifications, evidence, directly advertised SSIDs, BSSID contexts, channels, last-seen UTC, frame counts and sensors |
+| BLE | BLE observation count for 24 hours, up to 200 advertiser address summaries and the latest 100 advertisements; clickable advertiser details |
 
 Only the active tab's data is requested on the five-second refresh cadence.
 Switching tabs cancels obsolete dashboard requests. Pause updates freezes display
@@ -19,9 +20,10 @@ background regardless of which view is open or paused.
 Configuration and Status remain available from every tab. See
 [configuration and status dialogs](CONFIGURATION.md) for their behavior.
 
-## Device observations
+## Wi-Fi device observations
 
-MAC addresses open the shared [vendor/local-details popup](MAC_LOOKUP.md).
+Wi-Fi MAC addresses open the shared [vendor/local-details popup](MAC_LOOKUP.md).
+BLE advertiser links use a separate BLE detail dialog, described below.
 Recorded alert-source identities are red with a warning indicator across every
 view. Historical alerts without source identities are marked unknown.
 
@@ -86,7 +88,7 @@ limit is reached for the selected filter.
 ## Accessibility and animation
 
 Tabs support mouse/touch and keyboard navigation: Left/Right cycle between tabs,
-Home selects Overview, and End selects Devices. The selected tab and its panel
+Home selects Overview, and End selects BLE. The selected tab and its panel
 are labelled for assistive technology. Tables scroll within their panels on
 narrow screens.
 
@@ -94,3 +96,21 @@ The decorative logo ring pulses gently using CSS. It remains static when the
 browser/OS requests reduced motion. The pulse is branding and continues when
 updates are paused; use the collector health display and Status dialog to check
 monitoring activity.
+
+## Bluetooth Low Energy monitoring
+
+The **BLE** tab sits immediately to the right of **Devices**. It contains the
+24-hour retained observation count, up to 200 advertiser summaries grouped by
+sensor/address/type, and the last 100 advertisements. Devices and Reporting
+contain Wi-Fi data only; BLE API reads occur while the BLE tab is active.
+
+Advertiser links open local names, service UUIDs, manufacturer/service data, raw
+advertisement hex, RSSI and timestamps. Red links indicate retained alert-source
+associations. Random BLE addresses never trigger a MAC vendor request, regardless
+of their prefix bits. Public BLE addresses can show MAC registration; advertised
+company IDs are separate identifiers and do not authenticate a device.
+
+Counts reflect filtering, duplicate suppression, record/time retention and radio
+loss. Private addresses can rotate, so advertiser counts are not unique physical
+device counts. Empty tables can mean scanning is disabled, not that the area is
+empty. Check Configuration and Status. See [BLE setup and limits](BLE.md).

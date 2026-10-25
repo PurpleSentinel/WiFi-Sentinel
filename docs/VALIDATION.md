@@ -222,3 +222,85 @@ Do not stage disruptive deauthentication floods against live networks; synthetic
 4. Counts/alerts consistent with a separate authorised observation method.
 5. Documented channel coverage and privacy retention, localhost-only or authenticated remote access.
 6. False-positive review performed with actual AP maintenance/roaming events.
+
+## Issue #25 — passive BLE monitoring (2026-10-25)
+
+- ESP-IDF **5.5.4**, ESP32-C6 target: firmware builds successfully with NimBLE
+  observer enabled; central, peripheral and broadcaster roles are disabled.
+  Scanning uses `passive=1`, no duplicate filtering in the controller, and no
+  advertising, pairing, connection or scan-request path in application code.
+  Software RF coexistence is enabled. Application image: **1,119,456 bytes**,
+  **27%** of the large single-app partition remains free. Full `flash_args`
+  programming verified the bootloader, application and partition-table hashes.
+  NVS at 0x9000 was preserved.
+- Collector regression suite: **118 passed**. Tests exercise strict BLE wire
+  bounds and address types, raw-byte preservation, absent/malformed AD fields,
+  16/32/128-bit service UUID normalization, name/company/service/address rules,
+  duplicate suppression, per-sensor/rule cooldown under address churn, cache
+  capacity, indexed storage, independent BLE retention, record caps, API reads,
+  configuration validation/persistence, legacy sensor support, and startup policy
+  application before cleanup. The existing Starlette/httpx deprecation warning
+  remains unrelated to this feature.
+- **Six browser checks passed**, including separate BLE/Wi-Fi tables, BLE
+  configuration toggles, scan status, raw detail display, safe text rendering,
+  red alert-source addresses, and no MAC-vendor request for random BLE addresses
+  even when their bits look like a globally registered MAC. Existing keyboard,
+  dialog, polling/pause, mobile and reduced-motion checks pass.
+- Flashed only the designated C6 at the stable by-id path ending
+  `40:4C:CA:4D:6F:E4-if00`; the unrelated ESP device was not opened.
+  BLE enable and disable were acknowledged through the authenticated dashboard
+  API. Sensor ID `c6-sensor-01`, Wi-Fi band 2.4 GHz, channel **6**, beacon sample
+  factor **20** and heartbeat **15 seconds** remained unchanged.
+- Uncontrolled live comparison, two successive **30-second** windows with BLE
+  interval/window **100/20 ms**:
+
+  | BLE mode | Stored Wi-Fi reports | Retained BLE observations | BLE status |
+  |---|---:|---:|---|
+  | Disabled | 17 | 0 | Not scanning; error 0 |
+  | Enabled | 11 | 50 | Scanning; error 0 |
+
+  In the enabled phase, firmware status snapshots advanced from 1 to 435 BLE
+  advertisement reports and from 0 to 28 dropped/rate-limited BLE reports.
+  Configuration/status snapshots refresh every five seconds, so those counters
+  do not have exact phase-boundary timing. Wi-Fi heartbeat queue drops remained
+  **0**. Free heap was about **236.6 KB**, with a minimum around **233.2 KB**.
+  These are sampled, environmentally variable observations, **not** a controlled
+  RF packet-loss measurement or evidence of reliable simultaneous coverage.
+  Espressif rates this sniffer/scan combination as unstable; see [BLE limits](BLE.md).
+- Live payloads included names `Linksys` and `LHB-039D31AE`, public and random
+  addresses, service UUIDs and manufacturer data. These advertised identities
+  were not independently verified against a controlled physical test device.
+  Parser/rule tests use deterministic fixtures; no test advertisements or attack
+  frames were transmitted. Controlled device verification and extended RF soak
+  testing remain deployment validation tasks.
+- A browser against **http://10.81.1.177:8181** showed live BLE Overview counts,
+  31 advertiser rows at that moment, a functioning BLE detail dialog, scanning
+  status, and Reporting observations. No JavaScript errors or page overflow at
+  390 px were found. Address counts are not physical-device counts.
+- Reset the C6 and restarted the collector: BLE remained enabled at 100/20 ms,
+  scan state returned true with error 0, and all saved Wi-Fi settings remained
+  intact. Left BLE enabled on this installation, with default empty BLE alert
+  rules. The collector remains on its existing Ethernet LAN bind address.
+  No Pi Ethernet or Wi-Fi configuration was changed; `wlan0` remains without a
+  carrier. The existing transient service still requires the documented startup
+  arrangement after a Pi reboot.
+
+### Dedicated BLE tab
+
+The BLE 24-hour count, advertiser summaries and latest advertisements now live
+in a fifth **BLE** tab immediately after **Devices**. Devices and Reporting only
+fetch and show Wi-Fi data. Six browser checks cover the new order, BLE details,
+keyboard navigation, active-tab loading, pause behavior and mobile layout. A live
+LAN browser also confirmed populated BLE tables and no JavaScript errors.
+
+### BLE documentation audit
+
+Updated the README, setup/build guides, architecture, dashboard/configuration,
+protocol/detection, hardware, operations, security/privacy, vendor-data guidance,
+contributor guidance, references and roadmap for passive BLE and the fifth tab.
+Historical validation entries above retain their original measurements; current
+BLE observations are in the dedicated BLE tab rather than Overview/Devices/
+Reporting. The software-only BLE replay example was checked against the collector
+parser/storage, and relative Markdown file links and changed-file checksums were
+verified. Documentation describes controlled-device and extended-advertisement
+validation as outstanding rather than claiming those tests passed.
