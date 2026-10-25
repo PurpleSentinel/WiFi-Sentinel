@@ -118,3 +118,29 @@ def test_label_record_limit_and_clear(settings):
     engine.store.save_ble_label('sensor-1','cc:00:00:00:00:01','random','','')
     engine.store.save_ble_label('new','cc:00:00:00:00:01','random','alias','')
     engine.store.close()
+
+
+def test_unique_ble_addresses_across_sensors_types_and_24h_cutoff(settings):
+    from datetime import datetime, timedelta, timezone
+    engine=Engine(replace(settings,ble_duplicate_seconds=0))
+    with TestClient(create_app(settings,engine)) as client:
+        assert client.get('/api/summary').json()['ble_unique_addresses_24h'] == 0
+        ad=advertisement()
+        for event in (ad,ad,{**ad,'sensor_id':'other'},{**ad,'address_type':'public'}):
+            engine.ingest(event)
+        assert client.get('/api/summary').json()['ble_unique_addresses_24h'] == 1
+        assert client.get('/api/ble/devices').json()['total_identities'] == 3
+        now=datetime.now(timezone.utc).replace(microsecond=0)
+        old=advertisement(address='cc:00:00:00:00:01')
+        engine.ingest(old)
+        engine.store.db.execute('UPDATE ble_observations SET timestamp=? WHERE address=?',
+                                ((now-timedelta(hours=25)).isoformat(),old['address']))
+        engine.store.db.commit()
+        assert client.get('/api/summary').json()['ble_unique_addresses_24h'] == 1
+        # More than a UI page; the aggregate must not depend on the displayed cap/filter.
+        for index in range(205):
+            engine.ingest(advertisement(address=f'cc:00:00:00:01:{index:02x}'))
+        assert len(client.get('/api/ble/devices?limit=200').json()['devices']) == 200
+        assert client.get('/api/summary').json()['ble_unique_addresses_24h'] == 206
+        assert client.get('/api/ble/devices?query=no-such-name').json()['devices'] == []
+        assert client.get('/api/summary').json()['ble_unique_addresses_24h'] == 206

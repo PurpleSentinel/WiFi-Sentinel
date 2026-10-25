@@ -116,3 +116,23 @@ The advertiser table and selected workspace use the available page width with
 with the plot receiving the larger share of width. On narrow screens panels
 stack and tables scroll internally. Readable explanatory text widths do not
 constrain the table/chart area. See [dashboard layout](DASHBOARD.md#full-width-responsive-layout).
+
+## Unique devices metric
+
+The BLE summary adds **Unique devices**, styled like **Capture Freshness**. Its
+24-hour value counts distinct **MAC addresses only** across all retained
+observations, sensors and address types. Repeated reports of the same MAC count
+once, including sightings from different sensors or as both public and random. It is independent of table search, filtering, sorting and the 200-row
+visible cap.
+
+This differs from **Advertiser identities**, which counts sensor/address/type
+combinations. The two values can legitimately match when every MAC has only one
+sensor/type combination in the retained window. Both are observation metrics, not exact physical-device counts:
+private addresses rotate, addresses can be reused/spoofed, and capture can miss
+reports. No names, aliases, company IDs or RSSI are used to merge addresses.
+The card's footer and tooltip make these limits explicit.
+
+The card refreshes with the BLE view, freezes with Pause and preserves its last
+value with the normal stale/error notice if refresh fails. An empty 24-hour
+observation window produces 0. Four cards fit wide screens, two columns are used
+on intermediate screens and one column on small mobile displays.

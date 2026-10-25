@@ -38,6 +38,8 @@ class BLEBrowser(unittest.TestCase):
                 'limits':{'ble_retention_days':[1,3650]},'lists':['ble_filters','ble_alert_rules'],'restart_fields':[]}
         calls,posts,errors=[],[],[]
         stale=False
+        unique_count=1
+        fail_summary=False
         def route(request):
             nonlocal stale
             path=urlsplit(request.request.url).path
@@ -50,7 +52,9 @@ class BLEBrowser(unittest.TestCase):
                 return {**row,**label,'display_label':label['alias'] or row['display_label'],
                         'label_source':'Operator alias' if label['alias'] else row['label_source']}
             status=200
-            if name=='ble/label':
+            if name=='summary' and fail_summary:
+                status,data=503,{'detail':'Summary unavailable'}
+            elif name=='ble/label':
                 body=request.request.post_data_json;posts.append(body)
                 if request.request.headers.get('x-configuration-key')!='test-key':
                     status,data=403,{'detail':'A valid configuration key is required'}
@@ -73,13 +77,14 @@ class BLEBrowser(unittest.TestCase):
                 body=request.request.post_data_json;posts.append(body);sensor['configuration']['values'].update(body);data=sensor
             else:
                 data={'health':{'serial_enabled':True},'alert-sources':{'macs':[address],'legacy_alerts_without_sources':0},
-                      'summary':{'frames_24h':1,'alerts_24h':1,'sensors':1,'by_subtype':[],'ble_observations_24h':2},
+                      'summary':{'frames_24h':1,'alerts_24h':1,'sensors':1,'by_subtype':[],'ble_observations_24h':2,'ble_unique_addresses_24h':unique_count},
                       'channels':[],'frames':[],'devices':{'devices':[],'has_more':False},'alerts':[],
                       'sensors':[],'configuration':config}[name]
             request.fulfill(status=status,content_type='application/json',body=json.dumps(data))
         with sync_playwright() as p:
             browser=p.chromium.launch(headless=True,args=['--no-sandbox'])
             page=browser.new_page();page.route('**/*',route);page.on('pageerror',lambda error:errors.append(str(error)))
+            page.clock.set_fixed_time(now)
             page.goto('http://dashboard.test')
             self.assertEqual(page.get_by_role('tab').all_text_contents(),['Overview','Alerts','Reporting','Devices','BLE'])
             for tab in ('Reporting','Devices'):
@@ -93,6 +98,13 @@ class BLEBrowser(unittest.TestCase):
             self.assertIn('Static random',page.locator('#ble-device-rows').inner_text())
             self.assertEqual(page.locator('#ble-device-rows img').count(),0)
             self.assertTrue(page.locator('#ble-recent').evaluate('(node)=>!node.open'))
+            self.assertEqual(page.locator('#ble-unique-devices').inner_text(),'1')
+            self.assertEqual(page.locator('#ble-identities').inner_text(),'2')
+            self.assertIn('Distinct MAC addresses',page.locator('#ble-unique-definition').inner_text())
+            self.assertEqual(page.locator('.ble-metrics>article').count(),4)
+            self.assertIn('not an exact count',page.locator('#ble-unique-definition').inner_text())
+            metric_styles=page.evaluate("['#ble-unique-devices','#ble-freshness'].map(id=>{const node=document.querySelector(id),panel=node.closest('article'),s=getComputedStyle(panel);return {radius:s.borderRadius,padding:s.padding,background:s.backgroundImage,height:panel.getBoundingClientRect().height,font:getComputedStyle(node).fontSize};})")
+            self.assertEqual(metric_styles[0],metric_styles[1])
             page.locator('#ble-device-rows .mac-link').first.click()
             page.get_by_text('Random/private BLE address: vendor attribution and persistent identity are unavailable.',exact=True).wait_for()
             self.assertIn('004c',page.locator('#ble-details').inner_text())
@@ -132,6 +144,8 @@ class BLEBrowser(unittest.TestCase):
             self.assertEqual(page.locator('#ble-label-key').input_value(),'')
             self.assertEqual(labels.get('second'),None)
             page.get_by_role('button',name='Pause updates',exact=True).click();calls.clear()
+            unique_count=5
+            self.assertEqual(page.locator('#ble-unique-devices').inner_text(),'1')
             page.locator('#ble-model-form button').click()
             self.assertFalse(calls)
             page.locator('#ble-advertiser').select_option(json.dumps(['second',address,'random'],separators=(',',':')))
@@ -139,6 +153,7 @@ class BLEBrowser(unittest.TestCase):
             self.assertFalse(calls)
             page.get_by_role('button',name='Refresh',exact=True).click()
             page.wait_for_function("document.querySelector('#ble-range-values').textContent.includes('≈ 10.0 m')")
+            page.wait_for_function("document.querySelector('#ble-unique-devices').textContent==='5'")
             self.assertFalse(page.locator('#ble-calibrated').is_checked())
             self.assertEqual(page.locator('#ble-smoothing').input_value(),'0')
             self.assertEqual(page.locator('#ble-alias').input_value(),'')
@@ -149,6 +164,14 @@ class BLEBrowser(unittest.TestCase):
             self.assertTrue(any('query=Desk' in call for call in calls))
             page.locator('#ble-search').fill('');page.locator('#ble-address-type').select_option('public')
             page.get_by_text('No advertisers match these filters. Check scan status or clear filters.',exact=True).wait_for()
+            self.assertEqual(page.locator('#ble-unique-devices').inner_text(),'5')
+            fail_summary=True
+            page.get_by_role('button',name='Refresh',exact=True).click()
+            page.wait_for_function("document.querySelector('#ble-message').textContent.includes('Summary unavailable')")
+            self.assertEqual(page.locator('#ble-unique-devices').inner_text(),'5')
+            fail_summary=False
+            page.get_by_role('button',name='Refresh',exact=True).click()
+            page.wait_for_function("document.querySelector('#panel-ble').getAttribute('aria-busy')==='false'")
             for width in (1920,2560):
                 page.set_viewport_size({'width':width,'height':1440})
                 layout=page.evaluate('''()=>{
