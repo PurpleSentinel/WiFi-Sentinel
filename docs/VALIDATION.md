@@ -337,3 +337,43 @@ validation as outstanding rather than claiming those tests passed.
 - Updated repository docs and hierarchical wiki cover the explorer, alias privacy,
   registry provenance/maintenance, browser-session model controls and calibration
   limits. These are post-v1.2 enhancements, not content in its original archive.
+
+## Issue #31 — full-width dashboard layout
+
+Removed the 1460px page cap and aligned the header/content with shared 18–36px
+responsive gutters. Eight browser checks pass, including all five tabs at
+1920, 2560, 768, 390 and 320px widths and viewport-fitting dialogs. BLE checks
+also verify the selected workspace and RSSI plot use the extra desktop width.
+Live LAN checks cover actual advertiser/curve rendering on wide and mobile
+screens. No collector, firmware, radio or host networking changes are required.
+
+Alerts height follow-up: a browser-only 80-row fixture confirmed the Alerts table
+expands beyond the former 480px cap with no internal vertical overflow at 1920px
+and 390px. No fixture alerts were stored in the collector database.
+
+## Devices table — compact BSSID context redesign
+
+The live 200-row Devices result contained up to eight BSSIDs per address, with
+16 rows containing multiple contexts. They were previously joined into a single
+nowrap cell. The table now uses proportional bounded columns, wrapping text,
+separate date/time lines and two vertical BSSID previews. Longer lists open a
+searchable full-context dialog without changing table width.
+
+Browser coverage uses an 80-BSSID fixture to verify bounded desktop table width
+at 1280/1920/2560px, contained mobile overflow, all-context visibility, filtering,
+red source highlighting and Escape/focus restoration. Nine distinct dashboard
+browser checks pass (the five tab checks were rerun after the Escape fix).
+A live 1366px check measured a 1267px table within its 1267px panel, with no
+horizontal overflow. Nested MAC details and mobile dialog sizing were verified.
+No backend records, RF settings or Pi networking were modified by this redesign.
+
+Devices height follow-up: removed its internal 480px cap. The live 200-row table
+expanded to its full content height at desktop/mobile sizes with no inner
+vertical overflow or unintended page-level horizontal overflow.
+
+Devices sorting follow-up: all nine headings have paired direction arrows and
+accessible keyboard controls. Six tab browser checks pass, including numerical
+frames (2/10/100), chronological timestamps, channels, SSIDs, BSSID counts and
+persistence after redraw. Live 200-row checks verify ascending/descending frame
+sorting and mobile containment. Sorting acts on loaded rows without backend or
+sensor configuration changes.

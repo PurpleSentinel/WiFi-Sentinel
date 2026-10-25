@@ -149,6 +149,18 @@ class BLEBrowser(unittest.TestCase):
             self.assertTrue(any('query=Desk' in call for call in calls))
             page.locator('#ble-search').fill('');page.locator('#ble-address-type').select_option('public')
             page.get_by_text('No advertisers match these filters. Check scan status or clear filters.',exact=True).wait_for()
+            for width in (1920,2560):
+                page.set_viewport_size({'width':width,'height':1440})
+                layout=page.evaluate('''()=>{
+                    const workspace=document.querySelector('.ble-workspace').getBoundingClientRect();
+                    const panels=[...document.querySelectorAll('.ble-workspace>section')].map(node=>node.getBoundingClientRect());
+                    const plot=document.querySelector('#ble-range-plot').getBoundingClientRect();
+                    return {left:workspace.left,right:workspace.right,width:workspace.width,panels:panels.map(p=>({left:p.left,right:p.right,width:p.width})),plotWidth:plot.width,viewport:document.documentElement.clientWidth};
+                }''')
+                self.assertGreater(layout['width'],layout['viewport']*.95)
+                self.assertGreater(layout['panels'][1]['width'],layout['panels'][0]['width'])
+                self.assertGreater(layout['plotWidth'],layout['viewport']*.5)
+                self.assertLessEqual(layout['panels'][1]['right'],layout['right']+1)
             page.set_viewport_size({'width':390,'height':844})
             self.assertTrue(page.evaluate('document.documentElement.scrollWidth<=innerWidth'))
             self.assertEqual(errors,[])

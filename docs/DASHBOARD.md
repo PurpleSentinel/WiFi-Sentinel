@@ -125,3 +125,54 @@ expandable areas. The plot is controlled by reference RSSI, exponent, positive
 range bounds and median window; text mirrors the chart and marks uncalibrated,
 stale, missing and out-of-range cases. See [explorer](BLE_EXPLORER.md) and
 [ranging](BLE_RANGING.md) for identity, privacy and calibration limits.
+
+## Full-width responsive layout
+
+The dashboard uses the full available page width rather than a 1460px centred
+container. Header, navigation and content share responsive side gutters of
+18–36px. Tables, summary cards, charts and the BLE advertiser workspace expand
+with the viewport; Wi-Fi role evidence and BLE label/evidence columns can use
+more space on wide screens.
+
+Long explanatory paragraphs retain local readable widths without limiting the
+whole page. Existing responsive breakpoints stack panels on smaller screens;
+table scrolling remains inside panels, and dialogs remain capped to usable
+viewport-fitting widths. This changes presentation only: monitoring, filters,
+configuration, refresh and pause behavior are unchanged.
+
+The Alerts tab's **Recent security alerts** table expands vertically to show all
+loaded matching rows (up to 200). Use normal page scrolling rather than a nested
+vertical scrollbar; horizontal scrolling remains available on narrow screens.
+
+## Compact BSSID contexts in Devices
+
+The Devices table uses bounded, proportional columns instead of letting long
+address lists determine its width. MAC links stay readable, other long values
+wrap, and last-seen date/time appear on separate lines. Desktop table width
+follows the panel; narrow screens retain a bounded, horizontally scrollable
+1100px table instead of an ever-expanding row.
+
+**BSSID contexts** previews the first two addresses vertically. Longer lists have
+a **View all N** button opening a searchable dialog containing every observed
+context. Addresses remain clickable and retained alert sources remain red. The
+list is a snapshot of the selected row's 24-hour contexts, not verified connection
+history. Closing the dialog restores focus to its action, or Devices if a live
+refresh replaced that row. Search does not change monitoring or detector policy.
+
+The Devices table also expands vertically for all loaded rows (up to 200), using
+normal page scrolling rather than a height-constrained inner box. Narrow screens
+retain horizontal table scrolling within the panel.
+
+## Devices column sorting
+
+Each Devices column heading has small up/down arrows. Select a heading to sort
+ascending; select it again for descending. The active arrow is highlighted and
+assistive technology receives the column's `aria-sort` state. Heading buttons
+support keyboard activation. Sorting persists across refreshes, role filters and
+tab changes, and works on frozen rows while updates are paused.
+
+Frames sort numerically, last-seen values chronologically, BSSID contexts by
+count, channels by numeric sequence, and other columns by their displayed text
+or lists. Ties use MAC address for deterministic ordering. Sorting applies to the
+currently loaded rows (up to the most recent 200 for the role filter), not every
+retained database identity; the status line makes this scope explicit.
