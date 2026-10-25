@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .config import Settings
 from .models import MAC
+from .ssids import protected_name
 
 LIMITS = {
     'window_seconds': (1, 3600), 'deauth_threshold': (1, 1000000),
@@ -37,11 +38,11 @@ def validate_collector(values: dict) -> dict:
             if any(not isinstance(v, str) for v in value):
                 raise ValueError(f'{name} entries must be strings')
             if name == 'protected_ssids':
-                if any(not v or len(v.encode('utf-8')) > 32 or any(ord(c) < 32 for c in v) for v in value):
-                    raise ValueError('Protected SSIDs must contain 1..32 UTF-8 bytes without control characters')
+                for item in value:
+                    protected_name(item)
             elif any(not MAC.fullmatch(v) for v in value):
                 raise ValueError(f'{name} contains an invalid MAC address')
-            value = tuple(v.lower() for v in value)
+            value = tuple(v if name == 'protected_ssids' else v.lower() for v in value)
         result[name] = value
     return result
 

@@ -1,11 +1,14 @@
 """Explicit, environment-driven collector configuration; no runtime secrets."""
-from dataclasses import dataclass
 import os
+from dataclasses import dataclass
 from pathlib import Path
 
+from .ssids import protected_name
 
-def _csv_env(name: str) -> tuple[str, ...]:
-    return tuple(x.strip().lower() for x in os.getenv(name, "").split(",") if x.strip())
+
+def _csv_env(name: str, lower: bool = True) -> tuple[str, ...]:
+    values = tuple(x.strip() for x in os.getenv(name, "").split(",") if x.strip())
+    return tuple(value.lower() for value in values) if lower else values
 
 
 def _integer(name: str, default: int, low: int = 1) -> int:
@@ -36,6 +39,9 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         raw_serial = os.getenv("WIDS_SERIAL_PORT", "").strip()
+        protected = _csv_env('WIDS_PROTECTED_SSIDS', lower=False)
+        for value in protected:
+            protected_name(value)
         return cls(
             database=Path(os.getenv("WIDS_DATABASE", "./sentinel.sqlite3")).expanduser(),
             host=os.getenv("WIDS_HOST", "127.0.0.1"),
@@ -50,6 +56,6 @@ class Settings:
             cooldown_seconds=_integer("WIDS_COOLDOWN_SECONDS", 60),
             retention_days=_integer("WIDS_RETENTION_DAYS", 7),
             monitored_bssids=_csv_env("WIDS_MONITORED_BSSIDS"),
-            protected_ssids=_csv_env("WIDS_PROTECTED_SSIDS"),
+            protected_ssids=protected,
             trusted_bssids=_csv_env("WIDS_TRUSTED_BSSIDS"),
         )

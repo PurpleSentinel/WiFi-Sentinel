@@ -97,6 +97,27 @@ rendering produced a static logo, with no browser JavaScript errors.
 - The live service reported its 60-second retention schedule at startup; the
   LAN API remained healthy and the sensor remained on channel 6.
 
+### Lossless SSID transport — 2026-10-24/25
+
+- All 83 collector tests passed. Host-compiled checks exercise the firmware's
+  actual SSID extraction/hex serialization header and feed its output through
+  the collector, SQLite and API. A synthetic UTF-8 `Café` beacon triggered the
+  protected-SSID/untrusted-BSSID alert.
+- Coverage includes arbitrary/invalid UTF-8, NUL/control bytes, quotes and
+  backslashes, distinct escaped-looking names, the 32-byte boundary, hidden /
+  missing / malformed information elements, conflicting text/hex, exact-byte
+  rules, Unicode case expansion and legacy database migration.
+- Five Playwright checks passed, including Unicode display and raw-byte popup
+  metadata, plus existing dialog, filtering, highlighting and mobile behavior.
+- ESP-IDF v5.5.4 built the C6 image (837,280 bytes, 20% app-partition headroom).
+  The monitoring sensor was flashed through its verified by-ID port without
+  erasing NVS. Live sampled SSIDs included `ssid_hex` values that decoded to the
+  stored display text; the MAC popup and configuration guidance were verified.
+- Sensor ID, channel 6, sample factor 20 and heartbeat interval 15 seconds were
+  preserved. No Pi network or other ESP device settings were changed.
+- The Unicode alert check was synthetic and sent no RF traffic; this does not
+  claim an independently captured live Unicode AP or extend C5/RF validation.
+
 ## What has NOT been validated
 
 - C5 compilation and hardware operation; only the C6 target has been built/flashed in this installation.

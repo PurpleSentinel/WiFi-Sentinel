@@ -67,4 +67,10 @@ retain startup cleanup; the recurring worker belongs to the running web service.
 
 ## Updating
 
-Back up SQLite, check `git diff` and release notes, run Python tests and repeat firmware smoke tests for changed IDF versions. Avoid auto-upgrading firmware without a verified rollback process. There is no general migration framework; this release adds the nullable alert source-identity column compatibly on startup. Legacy alert sources remain unknown. See [MAC details](MAC_LOOKUP.md).
+Back up SQLite, check `git diff` and release notes, run Python tests and repeat firmware smoke tests for changed IDF versions. Avoid auto-upgrading firmware without a verified rollback process. There is no general migration framework; startup migrations add nullable alert source-identity and frame `ssid_hex` columns compatibly. Legacy alert sources and original SSID bytes remain unknown where they were not recorded. See [MAC details](MAC_LOOKUP.md).
+
+Upgrade the collector before flashing raw-SSID firmware. Old text-only telemetry
+is accepted by the new collector, but an old collector cannot decode `ssid_hex`.
+The database upgrade preserves historical SSID display text rather than guessing
+which bytes an older sensor replaced. For the full SSID test suite install a
+host C compiler; the firmware codec integration checks otherwise report skips.

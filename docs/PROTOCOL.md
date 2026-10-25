@@ -30,8 +30,24 @@ One ASCII line per event, beginning exactly `WIDS `, followed by one compact JSO
 - `protected`: 802.11 frame-control Protected bit, not verification of cryptographic authenticity.
 - `reason_code`: deauth/disassoc where unprotected and present; `-1` means unknown.
 - `status_code`: auth/association response where unprotected and present; `-1` means unknown.
-- `ssid`: short, best-effort SSID from sampled beacon/probe response; null if hidden or unavailable. Firmware sanitizes non-ASCII/control bytes with `_`.
+- `ssid_hex`: lossless SSID information-element bytes encoded as 0–64 hex digits
+  (0–32 bytes). An empty string means a present zero-length/hidden SSID; null
+  means unavailable. Current firmware emits `ssid:null` plus this field, keeping
+  the entire serial message ASCII JSON even for invalid UTF-8, NUL or control bytes.
+- `ssid`: legacy text field, or the collector's derived display value in APIs.
+  Valid printable UTF-8 such as `Café` is displayed normally. Non-printable and
+  invalid bytes become literal `\xNN` escapes; literal backslashes are doubled
+  to distinguish raw bytes from names containing escape-looking text. Null is
+  used for hidden/unavailable names. Legacy text-only events remain accepted,
+  but bytes already replaced by older firmware cannot be recovered.
 - `uptime_ms`: firmware monotonic milliseconds, may overflow every ~49.7 days.
+
+For example, a sampled `Café` beacon uses `"ssid":null,"ssid_hex":"436166c3a9"`.
+The collector stores both display text and the canonical raw hex. If a message
+supplies both text and raw hex they must agree. Legacy text must fit 32 UTF-8
+bytes; the bound is bytes, not Unicode character count. Upgrade the collector
+before flashing the raw-hex firmware; older collectors cannot interpret the new
+field. See [SSID configuration and matching](CONFIGURATION.md).
 
 ## `heartbeat` event
 

@@ -1,8 +1,10 @@
 """Constrained JSON line protocol shared with the ESP-IDF firmware."""
-from dataclasses import dataclass
 import json
 import re
+from dataclasses import dataclass
 from typing import Any
+
+from .ssids import wire_ssid
 
 # Parse only WIDS-prefixed lines. ESP boot/debug messages are deliberately ignored.
 MAC = re.compile(r"^[0-9a-f]{2}(:[0-9a-f]{2}){5}$", re.IGNORECASE)
@@ -24,6 +26,13 @@ class Frame:
     status_code: int | None = None
     ssid: str | None = None
     uptime_ms: int = 0
+    ssid_hex: str | None = None
+
+    @property
+    def ssid_bytes(self) -> bytes | None:
+        if self.ssid_hex is not None:
+            return bytes.fromhex(self.ssid_hex)
+        return self.ssid.encode('utf-8') if self.ssid is not None else None
 
     @classmethod
     def from_json(cls, obj: dict[str, Any]) -> "Frame":
@@ -46,9 +55,7 @@ class Frame:
             raise ValueError("invalid RSSI")
         if not isinstance(obj.get("protected"), bool):
             raise ValueError("protected must be boolean")
-        ssid = obj.get("ssid")
-        if ssid is not None and (not isinstance(ssid, str) or len(ssid) > 32 or any(ord(c) < 32 for c in ssid)):
-            raise ValueError("invalid SSID")
+        ssid, ssid_hex = wire_ssid(obj)
         def maybe_code(field: str) -> int | None:
             value = obj.get(field)
             if value is None or value == -1:
@@ -63,6 +70,7 @@ class Frame:
             protected=obj["protected"], reason_code=maybe_code("reason_code"),
             status_code=maybe_code("status_code"), ssid=ssid,
             uptime_ms=max(0, int(obj.get("uptime_ms", 0))),
+            ssid_hex=ssid_hex,
         )
 
 

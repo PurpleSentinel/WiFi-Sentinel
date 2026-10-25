@@ -56,7 +56,7 @@ def test_collector_validation_atomic_save_and_restart(settings):
             'trusted_bssids': ['AA:BB:CC:DD:EE:FF']})
         assert response.status_code == 200
         assert engine.settings.window_seconds == 20
-        assert engine.detector.settings.protected_ssids == ('office',)
+        assert engine.detector.settings.protected_ssids == ('Office',)
         assert engine.detector.settings.trusted_bssids == ('aa:bb:cc:dd:ee:ff',)
         assert settings_path(settings).stat().st_mode & 0o777 == 0o600
     restarted = Engine(replace(settings, window_seconds=99))

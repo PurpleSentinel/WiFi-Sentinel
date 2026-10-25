@@ -41,7 +41,7 @@ class MacDetails(unittest.TestCase):
                 else:
                     data = {'mac': mac, 'alert_sources': sources, 'observations': {
                         'classification': {'role': 'Client / Host', 'role_code': 'client', 'evidence': ['Association requests sent: 20'], 'window_hours': 24},
-                        'roles': ['Source'], 'ssids': [], 'bssids': [bssid], 'channels': [6],
+                        'roles': ['Source'], 'ssids': [], 'ssid_hex_values': ['436166c3a9'], 'bssids': [bssid], 'channels': [6],
                         'sensor_ids': ['c6'], 'first_seen': '2026-10-24', 'last_seen': '2026-10-24',
                         'frame_count': 20, 'alerts': alerts}}
             else:
@@ -83,6 +83,7 @@ class MacDetails(unittest.TestCase):
                 self.assertIn('Unknown / not observed', page.locator('#mac-local-details').inner_text())
                 self.assertIn('Client / Host', page.locator('#mac-local-details').inner_text())
                 self.assertIn('Association requests sent: 20', page.locator('#mac-local-details').inner_text())
+                self.assertIn('436166c3a9', page.locator('#mac-local-details').inner_text())
                 self.assertIn('alert-source', page.locator('#mac-address .mac-link').get_attribute('class'))
                 page.keyboard.press('Escape')
                 self.assertEqual(page.locator(':focus').get_attribute('data-mac'), source)

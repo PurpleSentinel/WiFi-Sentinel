@@ -47,6 +47,13 @@ compiled defaults. See [configuration](../docs/CONFIGURATION.md) and
 [USB commands](../docs/PROTOCOL.md). Native USB Serial/JTAG installs buffered
 input for bounded commands; this path has been exercised on the C6.
 
+SSID information elements are copied as up to 32 exact bytes with an explicit
+length and presence flag. Firmware exports them as ASCII `ssid_hex`, not a C
+string or underscore-sanitized text. Upgrade the collector before flashing this
+version so UTF-8 names and arbitrary-byte SSIDs are decoded correctly. The host
+compiler integration tests use the same extraction/serialization header as the
+firmware; a host C compiler is needed to run those tests (otherwise they skip).
+
 Each `WIDS` line is one JSON object; firmware outputs ordinary ESP-IDF logs too.
 Configure console output to USB-serial or UART at a readable rate (115200 is
 supported for ordinary UART; actual native USB Serial/JTAG transport baud

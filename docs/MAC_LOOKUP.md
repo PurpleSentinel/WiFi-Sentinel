@@ -8,6 +8,12 @@ Configuration inputs remain editable; separate address lookup buttons appear
 under BSSID lists and read-only connection fields containing a MAC address.
 Popup content uses text rendering, including untrusted SSIDs and vendor text.
 
+For new firmware captures the popup also shows advertised SSID byte hex, suitable
+for an exact `hex:` protected-name rule. Printable UTF-8 names are displayed
+normally; invalid/non-printable bytes are escaped and literal backslashes are
+doubled. See [SSID matching syntax](CONFIGURATION.md). Legacy sanitized names
+retain their original stored text and have no recoverable raw-byte metadata.
+
 Reporting includes both source and destination MACs. All address links use the
 same rendering helper, including addresses embedded in alert descriptions or
 displayed as BSSIDs. Close/Escape restores focus, including when lookup opens
