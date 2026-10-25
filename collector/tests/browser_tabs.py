@@ -190,3 +190,105 @@ class DashboardTabs(unittest.TestCase):
         page.set_viewport_size({'width': 390, 'height': 844})
         self.assertTrue(page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
         self.assertEqual(self.errors, [])
+
+    def test_full_width_desktop_and_contained_narrow_layouts(self):
+        page = self.page
+        for width in (1920, 2560, 768, 390, 320):
+            page.set_viewport_size({'width': width, 'height': 1080 if width > 1000 else 844})
+            for name in ('Overview', 'Alerts', 'Reporting', 'Devices', 'BLE'):
+                self.select(name)
+                bounds = page.evaluate('''() => {
+                    const tab = document.querySelector('[role=tabpanel]:not([hidden])').getBoundingClientRect();
+                    const brand = document.querySelector('.brand').getBoundingClientRect();
+                    const main = document.querySelector('main').getBoundingClientRect();
+                    return {viewport:document.documentElement.clientWidth, page:document.documentElement.scrollWidth,
+                            mainWidth:main.width, left:tab.left, right:tab.right, brandLeft:brand.left};
+                }''')
+                self.assertLessEqual(bounds['page'], width)
+                self.assertAlmostEqual(bounds['mainWidth'], bounds['viewport'], delta=1)
+                self.assertAlmostEqual(bounds['left'], bounds['brandLeft'], delta=1)
+                self.assertAlmostEqual(bounds['viewport'] - bounds['right'], bounds['left'], delta=1)
+                if width >= 1920:
+                    self.assertLessEqual(bounds['left'], 36)
+                    self.assertGreater(bounds['right'] - bounds['left'], bounds['viewport'] * .95)
+            page.get_by_role('button', name='Configuration', exact=True).click()
+            page.locator('#collector-window_seconds').wait_for()
+            self.assertTrue(page.locator('#configuration-dialog').evaluate(
+                '(node) => node.getBoundingClientRect().width <= innerWidth && node.scrollWidth <= node.clientWidth'))
+            page.keyboard.press('Escape')
+        self.assertEqual(self.errors, [])
+
+    def test_many_bssid_contexts_keep_table_bounded_and_remain_accessible(self):
+        page = self.page
+        self.select('Devices')
+        page.get_by_role('button', name='Pause updates', exact=True).click()
+        page.evaluate('''() => {
+            const addresses=Array.from({length:80},(_,i)=>'02:aa:00:00:00:'+i.toString(16).padStart(2,'0'));
+            deviceData.devices[0].bssids=addresses;
+            setAlertSources({macs:[addresses[5]],legacy_alerts_without_sources:0});
+            displayDevices(deviceData);
+        }''')
+        self.assertEqual(page.locator('#device-rows tr').first.locator('.device-bssids .mac-link').count(), 2)
+        more=page.get_by_role('button',name='View all 80 observed BSSID contexts for 02:11:22:33:44:55',exact=True)
+        for width in (1280,1920,2560):
+            page.set_viewport_size({'width':width,'height':1080})
+            dimensions=page.locator('#device-table').evaluate(
+                '(table)=>({width:table.getBoundingClientRect().width,content:table.scrollWidth,container:table.parentElement.clientWidth})')
+            self.assertLessEqual(dimensions['width'],dimensions['container']+1)
+            self.assertLessEqual(dimensions['content'],dimensions['container']+1)
+        page.set_viewport_size({'width':390,'height':844})
+        self.assertTrue(page.evaluate('document.documentElement.scrollWidth<=innerWidth'))
+        more.click()
+        page.locator('#device-context-list li').first.wait_for()
+        self.assertEqual(page.locator('#device-context-list .mac-link').count(),80)
+        self.assertIn('80 of 80',page.locator('#device-context-count').inner_text())
+        marked=page.locator('#device-context-list [data-mac="02:aa:00:00:00:05"]')
+        self.assertIn('alert-source',marked.get_attribute('class'))
+        page.locator('#device-context-search').fill('00:05')
+        self.assertEqual(page.locator('#device-context-list .mac-link').count(),1)
+        self.assertIn('1 of 80',page.locator('#device-context-count').inner_text())
+        self.assertTrue(page.locator('#device-context-dialog').evaluate('(node)=>node.scrollWidth<=node.clientWidth'))
+        page.locator('#device-context-search').fill('not-an-address')
+        self.assertIn('No matching BSSID contexts',page.locator('#device-context-list').inner_text())
+        page.keyboard.press('Escape')
+        page.wait_for_function("!document.querySelector('#device-context-dialog').open && document.activeElement.classList.contains('device-context-more')")
+        self.assertEqual(page.locator(':focus').get_attribute('class'),'device-context-more')
+        self.assertEqual(self.errors,[])
+
+    def test_device_column_sorting_numeric_dates_and_persistence(self):
+        page=self.page
+        self.select('Devices')
+        page.get_by_role('button',name='Pause updates',exact=True).click()
+        page.evaluate('''()=>{
+            const base=deviceData.devices[0];
+            deviceData.devices=[
+              {...base,mac:'02:00:00:00:00:01',frame_count:100,last_seen:'2026-10-25T02:00:00Z',channels:[11],ssids:['Zoo'],bssids:['02:00:00:00:10:01','02:00:00:00:10:02']},
+              {...base,mac:'02:00:00:00:00:02',frame_count:2,last_seen:'2026-10-25T01:00:00Z',channels:[2],ssids:['Alpha'],bssids:['02:00:00:00:10:01']},
+              {...base,mac:'02:00:00:00:00:03',frame_count:10,last_seen:'2026-10-25T03:00:00Z',channels:[6],ssids:['Middle'],bssids:[]}
+            ];displayDevices(deviceData);
+        }''')
+        def addresses():return page.locator('#device-rows tr td:first-child .mac-link').all_text_contents()
+        frames=page.locator('[data-device-sort="frame_count"]')
+        frames.click()
+        self.assertEqual([mac[-2:] for mac in addresses()],['02','03','01'])
+        self.assertEqual(frames.locator('..').get_attribute('aria-sort'),'ascending')
+        self.assertIn('active',frames.locator('.sort-up').get_attribute('class'))
+        frames.press('Enter')
+        self.assertEqual([mac[-2:] for mac in addresses()],['01','03','02'])
+        self.assertEqual(frames.locator('..').get_attribute('aria-sort'),'descending')
+        page.evaluate('displayDevices(deviceData)')
+        self.assertEqual([mac[-2:] for mac in addresses()],['01','03','02'])
+        page.locator('[data-device-sort="last_seen"]').click()
+        self.assertEqual([mac[-2:] for mac in addresses()],['02','01','03'])
+        page.locator('[data-device-sort="channels"]').click()
+        self.assertEqual([mac[-2:] for mac in addresses()],['02','03','01'])
+        page.locator('[data-device-sort="ssids"]').click()
+        self.assertEqual([mac[-2:] for mac in addresses()],['02','03','01'])
+        page.locator('[data-device-sort="bssids"]').click()
+        self.assertEqual([mac[-2:] for mac in addresses()],['03','02','01'])
+        self.assertIn('loaded rows only',page.locator('#devices-message').inner_text())
+        self.assertEqual(page.locator('#device-table [data-device-sort]').count(),9)
+        for key in ('mac','role','evidence','sensor_ids'):
+            page.locator('[data-device-sort="'+key+'"]').click()
+            self.assertEqual(page.locator('#device-table th[aria-sort="ascending"]').count(),1)
+        self.assertEqual(self.errors,[])

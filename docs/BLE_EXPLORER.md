@@ -108,3 +108,11 @@ Aliases never follow a rotating address automatically and never transfer between
 sensors or address types. An address can be reused/spoofed, so a persisted alias
 is still an operator annotation, not a verified persistent physical identity.
 Red address links continue to mean retained alert-source association, not guilt.
+
+## Wide and narrow displays
+
+The advertiser table and selected workspace use the available page width with
+18–36px side gutters. Evidence and the RSSI plot stay side by side on desktop,
+with the plot receiving the larger share of width. On narrow screens panels
+stack and tables scroll internally. Readable explanatory text widths do not
+constrain the table/chart area. See [dashboard layout](DASHBOARD.md#full-width-responsive-layout).
