@@ -44,6 +44,9 @@ class Store:
             columns = {row['name'] for row in self.db.execute('PRAGMA table_info(alerts)')}
             if 'source_macs' not in columns:
                 self.db.execute('ALTER TABLE alerts ADD COLUMN source_macs TEXT')
+            frame_columns = {row['name'] for row in self.db.execute('PRAGMA table_info(frames)')}
+            if 'ssid_hex' not in frame_columns:
+                self.db.execute('ALTER TABLE frames ADD COLUMN ssid_hex TEXT')
             self.db.commit()
         self.retention_days = retention_days
         self.cleanup()
@@ -56,11 +59,11 @@ class Store:
         ts = self.timestamp()
         with self.lock, self.db:
             self.db.execute("""INSERT INTO frames
-                (timestamp,sensor_id,channel,subtype,sa,da,bssid,rssi,protected,reason_code,status_code,ssid,uptime_ms)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
+                (timestamp,sensor_id,channel,subtype,sa,da,bssid,rssi,protected,reason_code,status_code,ssid,uptime_ms,ssid_hex)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
                 ts, frame.sensor_id, frame.channel, frame.subtype, frame.sa, frame.da,
                 frame.bssid, frame.rssi, int(frame.protected), frame.reason_code,
-                frame.status_code, frame.ssid, frame.uptime_ms,
+                frame.status_code, frame.ssid, frame.uptime_ms, frame.ssid_hex,
             ))
             for a in alerts:
                 values = asdict(a)
@@ -103,14 +106,16 @@ class Store:
             MAX(bssid=?) AS is_bssid,
             json_group_array(DISTINCT CASE WHEN bssid=? AND subtype IN ('beacon','probe_resp')
                 THEN ssid END) AS ssids,
+            json_group_array(DISTINCT CASE WHEN bssid=? AND subtype IN ('beacon','probe_resp')
+                THEN ssid_hex END) AS ssid_hex_values,
             json_group_array(DISTINCT bssid) AS bssids,
             json_group_array(DISTINCT channel) AS channels,
             json_group_array(DISTINCT sensor_id) AS sensor_ids
             FROM frames WHERE timestamp >= ? AND (sa=? OR da=? OR bssid=?)''',
-            (mac, mac, mac, mac, after, mac, mac, mac))[0]
+            (mac, mac, mac, mac, mac, after, mac, mac, mac))[0]
         roles = [label for key, label in [('is_source', 'Source'), ('is_destination', 'Destination'),
                                          ('is_bssid', 'BSSID')] if observed.pop(key)]
-        for name in ('ssids', 'bssids', 'channels', 'sensor_ids'):
+        for name in ('ssids', 'ssid_hex_values', 'bssids', 'channels', 'sensor_ids'):
             observed[name] = sorted(value for value in json.loads(observed[name]) if value is not None and value != '')
         alerts = self.rows('''SELECT * FROM alerts WHERE timestamp >= ? AND
                             (bssid=? OR EXISTS (SELECT 1 FROM json_each(alerts.source_macs) WHERE value=?))

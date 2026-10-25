@@ -28,6 +28,7 @@
 #include "freertos/task.h"
 #include "nvs_flash.h"
 #include "sdkconfig.h"
+#include "ssid_codec.h"
 #if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
 #include "driver/usb_serial_jtag.h"
 #include "driver/usb_serial_jtag_vfs.h"
@@ -35,7 +36,6 @@
 
 static const char *TAG = "wids";
 #define RX_QUEUE_DEPTH 192
-#define MAX_SSID_LEN 32
 #define MGMT_HDR_LEN 24
 
 typedef struct {
@@ -43,7 +43,9 @@ typedef struct {
     uint8_t addr1[6];
     uint8_t addr2[6];
     uint8_t bssid[6];
-    uint8_t ssid[MAX_SSID_LEN + 1];
+    uint8_t ssid[WIDS_SSID_MAX_LEN];
+    uint8_t ssid_len;
+    bool ssid_present;
     int8_t rssi;
     uint8_t channel;
     bool protected_frame;
@@ -270,24 +272,7 @@ static uint16_t le16(const uint8_t *input)
 
 static void extract_ssid(rx_frame_t *out, const uint8_t *data, size_t length)
 {
-    /* Beacons/probe responses have 12 fixed bytes after the 24-byte header. */
-    size_t position = MGMT_HDR_LEN + 12;
-    while (position + 2 <= length) {
-        uint8_t id = data[position++];
-        uint8_t size = data[position++];
-        if (position + size > length) return;  /* Malformed IE */
-        if (id == 0) {
-            if (size > MAX_SSID_LEN) return;
-            for (uint8_t i = 0; i < size; i++) {
-                /* Avoid embedding raw control codes in the NDJSON transport. */
-                uint8_t ch = data[position + i];
-                out->ssid[i] = (ch >= 32 && ch <= 126) ? ch : '_';
-            }
-            out->ssid[size] = '\0';
-            return;
-        }
-        position += size;
-    }
+    out->ssid_present = wids_extract_ssid(data, length, out->ssid, &out->ssid_len);
 }
 
 /* Called from the Wi-Fi receive task, not an ISR. Never block or print here. */
@@ -367,10 +352,9 @@ static void report_frame(const rx_frame_t *frame)
     printf("\",\"bssid\":\"");
     emit_mac(frame->bssid);
     printf("\",\"rssi\":%d,\"protected\":%s,\"reason_code\":%" PRId32
-           ",\"status_code\":%" PRId32 ",\"ssid\":", frame->rssi,
+           ",\"status_code\":%" PRId32 ",\"ssid\":null,\"ssid_hex\":", frame->rssi,
            frame->protected_frame ? "true" : "false", frame->reason_code, frame->status_code);
-    if (frame->ssid[0]) json_string((const char *)frame->ssid);
-    else printf("null");
+    wids_write_ssid_hex(stdout, frame->ssid, frame->ssid_len, frame->ssid_present);
     printf(",\"uptime_ms\":%" PRIu32 "}\n", frame->uptime_ms);
     fflush(stdout);
 }

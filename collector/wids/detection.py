@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 from .config import Settings
 from .models import Frame
+from .ssids import matches_protected
 
 
 @dataclass(frozen=True)
@@ -49,10 +50,10 @@ class Detector:
 
         # SSID allowlisting does not depend on the monitored BSSID filter.
         if frame.subtype in {"beacon", "probe_resp"} and frame.ssid:
-            fingerprint = (frame.sensor_id, frame.bssid, frame.ssid)
+            fingerprint = (frame.sensor_id, frame.bssid, frame.ssid_bytes)
             if fingerprint not in self.seen_ssids:
                 self.seen_ssids.add(fingerprint)
-                if (frame.ssid.lower() in self.settings.protected_ssids
+                if (matches_protected(frame.ssid_bytes, self.settings.protected_ssids)
                         and frame.bssid not in self.settings.trusted_bssids):
                     make("protected_ssid_untrusted_bssid", "high", 1,
                          f"SSID {frame.ssid!r} advertised by non-allowlisted BSSID; investigate, not proof of evil twin",

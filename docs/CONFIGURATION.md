@@ -42,7 +42,20 @@ The following controls apply immediately and are saved atomically on the Pi:
 
 Saving starts fresh detector windows. Shortening retention immediately removes
 expired records. SSID matching currently remains case-insensitive, and firmware
-still sanitizes non-ASCII SSIDs (tracked in issue #5).
+now preserves the original SSID bytes, including non-ASCII names. Protected
+names retain their entered case in configuration; ordinary UTF-8 matching remains
+case-insensitive as before. SSIDs are limited to 32 bytes, not 32 characters.
+
+For unusual byte sequences, use `hex:` followed by 1–32 exact bytes encoded as
+hex pairs: `hex:4100ff` matches bytes `41 00 ff` exactly, including case-sensitive
+ASCII bytes. A plain name such as `Café` matches its UTF-8 encoding. Prefixes
+`hex:` and `utf8:` are reserved; use `utf8:hex:4100ff` to match a literal SSID
+named `hex:4100ff`, or `utf8:utf8:Office` for one named `utf8:Office`.
+Raw SSID hex is available in new frame API records and the MAC details popup.
+Use hex for control bytes, leading/trailing spaces, invalid UTF-8, or names that
+cannot be expressed conveniently in the line/comma-separated configuration.
+Hidden zero-length SSIDs are not treated as protected named networks. Older
+stored/sanitized SSIDs cannot be reconstructed retroactively.
 
 While the web service is running, a dedicated worker attempts retention cleanup
 every 60 seconds even without sensor traffic. See [Operations](OPERATIONS.md)

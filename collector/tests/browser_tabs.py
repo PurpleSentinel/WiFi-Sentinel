@@ -51,7 +51,7 @@ class DashboardTabs(unittest.TestCase):
             'frames?limit=100': [] if self.empty else [{
                 'timestamp': '2026-10-24T14:00:00Z', 'subtype': 'beacon',
                 'sa': '02:11:22:33:44:55', 'bssid': '02:11:22:33:44:55',
-                'rssi': -40, 'channel': 6, 'protected': False, 'ssid': 'Office'}],
+                'rssi': -40, 'channel': 6, 'protected': False, 'ssid': 'Café', 'ssid_hex': '436166c3a9'}],
             'devices?limit=200': {'window_hours': 24, 'limit': 200, 'has_more': False,
                 'devices': [] if self.empty else [{
                     'mac': '02:11:22:33:44:55', 'role': 'Access Point', 'role_code': 'access_point',
@@ -101,6 +101,7 @@ class DashboardTabs(unittest.TestCase):
         self.assertNotIn('devices?limit=200', self.calls)
         self.select('Reporting')
         self.assertEqual(page.locator('#frame-rows tr').count(), 1)
+        self.assertIn('Café', page.locator('#frame-rows').inner_text())
         self.select('Devices')
         self.assertIn('<img src=x onerror=alert(1)>', page.locator('#device-rows').inner_text())
         self.assertEqual(page.locator('#device-rows img').count(), 0)
