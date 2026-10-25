@@ -1,6 +1,6 @@
 # Hardware and bill of materials
 
-## Tested installation (2026-10-24)
+## Tested installation (Wi-Fi 2026-10-24; BLE 2026-10-25)
 
 | Component | Evidence / state |
 |---|---|
@@ -8,9 +8,10 @@
 | Hostname | `pi5`; a hostname is not a hardware model |
 | Monitoring chip | **ESP32-C6 (QFN40), revision v0.0**, identified by esptool during bring-up |
 | Sensor Wi-Fi | **2.4 GHz only**, one receive channel at a time; deployed on channel 6 |
+| Sensor BLE | Passive legacy LE 1M advertisement reception tested; optional, shares the C6 radio with Wi-Fi |
 | USB transport | Native Espressif USB Serial/JTAG, VID:PID `303a:1001` |
 | Tested toolchain | ESP-IDF **v5.5.4**, target `esp32c6` |
-| Tested functions | Build/flash, sampled beacons and heartbeat, USB collector ingestion, runtime channel switching and NVS persistence |
+| Tested functions | Build/flash, sampled beacons and heartbeat, passive BLE reports, USB ingestion, runtime controls, channel switching and NVS persistence |
 | Board product/PCB revision | Unknown; the USB/chip identifiers do not establish a commercial board model |
 | Antenna/connector/pinout/flash capacity | Not independently established; do not infer PCB features from chipset capabilities or the build's flash-size setting |
 
@@ -66,3 +67,17 @@ Low frame counts do not prove that no activity occurred. One fixed-channel
 sensor cannot hear every channel; two sensors fixed to different channels give
 more continuous coverage. Live multi-port fan-in within one collector process
 remains a roadmap item. See [validation limits](VALIDATION.md).
+
+## Bluetooth Low Energy monitoring
+
+The current C6 provides BLE monitoring without another USB peripheral or the
+Pi Bluetooth adapter. Existing unrelated ESP hardware remains outside this
+application. Wi-Fi sniffing and BLE scanning share the C6 RF path; Espressif
+classifies simultaneous performance as unstable. Separate RF sensors and
+collectors are appropriate when coverage continuity matters; single-process
+multi-port collection is still not implemented.
+
+Live BLE reports, enable/disable and reboot persistence were exercised on this
+C6, but controlled-device identity verification and long RF soak tests remain
+outstanding. Do not infer support for extended advertisements, Bluetooth Classic
+or untested C5 BLE hardware. See [BLE limits](BLE.md) and [validation](VALIDATION.md).

@@ -36,6 +36,12 @@ class Settings:
     protected_ssids: tuple[str, ...]
     trusted_bssids: tuple[str, ...]
 
+    ble_retention_days: int = 7
+    ble_duplicate_seconds: int = 10
+    ble_max_records: int = 100000
+    ble_filters: tuple[str, ...] = ()
+    ble_alert_rules: tuple[str, ...] = ()
+
     @classmethod
     def from_env(cls) -> "Settings":
         raw_serial = os.getenv("WIDS_SERIAL_PORT", "").strip()
@@ -43,6 +49,11 @@ class Settings:
         for value in protected:
             protected_name(value)
         return cls(
+            ble_retention_days=_integer('WIDS_BLE_RETENTION_DAYS', 7),
+            ble_duplicate_seconds=_integer('WIDS_BLE_DUPLICATE_SECONDS', 10, 0),
+            ble_max_records=_integer('WIDS_BLE_MAX_RECORDS', 100000, 100),
+            ble_filters=_csv_env('WIDS_BLE_FILTERS', lower=False),
+            ble_alert_rules=_csv_env('WIDS_BLE_ALERT_RULES', lower=False),
             database=Path(os.getenv("WIDS_DATABASE", "./sentinel.sqlite3")).expanduser(),
             host=os.getenv("WIDS_HOST", "127.0.0.1"),
             port=_integer("WIDS_PORT", 8181),

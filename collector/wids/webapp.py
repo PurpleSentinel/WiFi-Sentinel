@@ -107,7 +107,7 @@ def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
     def alerts(limit: int = 100):
         if not 1 <= limit <= 500:
             raise HTTPException(400, "limit must be 1..500")
-        return core.store.rows("SELECT * FROM alerts ORDER BY id DESC LIMIT ?", (limit,))
+        return core.store.all_alerts(limit)
 
     @app.get("/api/frames")
     def frames(limit: int = 100):
@@ -130,6 +130,22 @@ def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
         if role != 'all' and role not in ROLE_LABELS:
             raise HTTPException(400, 'role must be all, access_point, client, mixed or unknown')
         return core.store.devices(limit, role)
+
+    @app.get('/api/ble/observations')
+    def ble_observations(limit: int = 100, address: str | None = None, address_type: str | None = None):
+        if not 1 <= limit <= 500 or address_type not in (None, 'public', 'random'):
+            raise HTTPException(400, 'Invalid BLE limit or address type')
+        try:
+            address = normalize_mac(address) if address else None
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        return core.store.ble_observations(limit, address, address_type)
+
+    @app.get('/api/ble/devices')
+    def ble_devices(limit: int = 200):
+        if not 1 <= limit <= 500:
+            raise HTTPException(400, 'limit must be 1..500')
+        return core.store.ble_devices(limit)
 
     @app.get('/api/alert-sources')
     def alert_sources():

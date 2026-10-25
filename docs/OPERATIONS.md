@@ -74,3 +74,39 @@ is accepted by the new collector, but an old collector cannot decode `ssid_hex`.
 The database upgrade preserves historical SSID display text rather than guessing
 which bytes an older sensor replaced. For the full SSID test suite install a
 host C compiler; the firmware codec integration checks otherwise report skips.
+
+## BLE operation and troubleshooting
+
+Upgrade the collector before flashing BLE firmware. Stop the serial reader,
+flash the complete generated image set including the large-app partition table,
+and preserve NVS. Startup creates separate `ble_observations` and `ble_alerts`
+tables alongside existing Wi-Fi data. Back up the complete database and saved
+collector settings; raw BLE advertising bytes are part of that backup.
+
+Enable BLE through Configuration, confirm **Status** reports passive scanning and
+error 0, then open **BLE** immediately after Devices. Devices and Reporting now
+show Wi-Fi data only. Use your configured dashboard address in these read-only
+checks (loopback is the default; an Ethernet-bound deployment uses its LAN IP):
+
+```bash
+curl -s http://127.0.0.1:8181/api/configuration
+curl -s 'http://127.0.0.1:8181/api/ble/devices?limit=20'
+curl -s 'http://127.0.0.1:8181/api/ble/observations?limit=20'
+```
+
+| Symptom | Checks |
+|---|---|
+| BLE controls unavailable | Update sensor firmware; confirm USB connection and reported BLE capability |
+| BLE enabled but not scanning | Inspect Status error, reconnect/reload Configuration and confirm the effective settings |
+| No BLE rows | Check enable state, scan window, observation filters and nearby legacy LE 1M advertisements; many names appear only in excluded scan responses |
+| BLE dropped count rises | Includes queue overflow and the 20-report/second export limit; reduce scan duty or use a less busy location; collector filters operate after USB export |
+| Fewer Wi-Fi reports with BLE on | Shared-radio competition is expected; disable BLE or use independent sensors for reliable coverage |
+| Same gadget appears at new addresses | Private BLE addresses rotate; do not treat advertiser rows as a physical-device inventory |
+| BLE history disappears sooner than time retention | Independent BLE record cap trims oldest batches to about 90% of the configured cap |
+
+BLE time retention defaults to seven days and the cap to 100,000 rows per BLE
+table. The existing 60-second cleanup worker also expires BLE data while idle.
+Deleted SQLite pages are reusable; the file does not immediately shrink. Empty
+BLE alert rules disable BLE alerts, and empty observation filters accept all.
+Default scan interval/window are 100/20 ms; saved NVS values survive reboot.
+See [BLE controls, privacy and limitations](BLE.md).

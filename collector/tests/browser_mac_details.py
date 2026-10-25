@@ -47,6 +47,7 @@ class MacDetails(unittest.TestCase):
             else:
                 data = {
                     'alert-sources': sources,
+                    'ble/observations?limit=100': [], 'ble/devices?limit=200': {'devices': [], 'has_more': False},
                     'health': {'serial_enabled': True},
                     'summary': {'frames_24h': 20, 'alerts_24h': 1, 'sensors': 1, 'by_subtype': []},
                     'channels': [], 'alerts?limit=200': alerts,

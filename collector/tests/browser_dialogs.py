@@ -56,7 +56,8 @@ class DashboardDialogs(unittest.TestCase):
             elif path == 'sensors':
                 status, data = (503, {'detail': 'Sensor data unavailable'}) if fail_status else (200, rows)
             else:
-                data = {'health': {'serial_enabled': True},
+                data = {'ble/observations?limit=100': [], 'ble/devices?limit=200': {'devices': [], 'has_more': False},
+                    'health': {'serial_enabled': True},
                         'summary': {'frames_24h': 3, 'alerts_24h': 0, 'sensors': 2,
                                     'by_subtype': []},
                         'channels': [], 'alerts?limit=200': [], 'frames?limit=100': []}[path]

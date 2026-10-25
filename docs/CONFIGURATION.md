@@ -2,7 +2,9 @@
 
 Use **Configuration** next to **Pause updates** to inspect collector settings and
 the connected sensor's effective configuration. Use **Status** to see sensor IDs,
-last-seen UTC timestamps, channels, uptime and dropped reports. Status refreshes
+last-seen UTC timestamps, channels, uptime and dropped reports. BLE-capable
+firmware also reports passive scan state, BLE report/drop counts, free heap and
+stack/controller error (0 means clear). Status refreshes
 every five seconds while open unless updates are paused; opening it always
 performs a one-time refresh. Monitoring continues when either dialog is closed.
 
@@ -39,8 +41,19 @@ The following controls apply immediately and are saved atomically on the Pi:
 | Monitored BSSIDs | `WIDS_MONITORED_BSSIDS` | One MAC per line; empty monitors all |
 | Protected SSIDs | `WIDS_PROTECTED_SSIDS` | One SSID per line; empty disables this rule |
 | Trusted BSSIDs | `WIDS_TRUSTED_BSSIDS` | One MAC per line |
+| BLE retention | `WIDS_BLE_RETENTION_DAYS` | 1–3650 days; default 7 |
+| BLE identical-report suppression | `WIDS_BLE_DUPLICATE_SECONDS` | 0–3600 seconds; default 10; 0 disables |
+| BLE maximum records | `WIDS_BLE_MAX_RECORDS` | 100–1,000,000 per BLE table; default 100,000 |
+| BLE observation filters | `WIDS_BLE_FILTERS` | Up to 256 exact rules; empty accepts all |
+| BLE alert rules | `WIDS_BLE_ALERT_RULES` | Up to 256 exact rules; empty disables alerts |
 
-Saving starts fresh detector windows. Shortening retention immediately removes
+BLE filters and alert rules use `name:My beacon`, `address:aa:bb:cc:dd:ee:ff`,
+`service:180f` or `company:004c`. Enter one rule per line in the dialog, or comma
+separated in the environment. Rules are ORed; names match case insensitively.
+Company IDs are Bluetooth identifiers, not MAC-prefix registrations. See
+[BLE rule semantics and limits](BLE.md).
+
+Saving starts fresh detector windows and BLE duplicate/cooldown caches. Shortening retention immediately removes
 expired records. SSID matching currently remains case-insensitive, and firmware
 now preserves the original SSID bytes, including non-ASCII names. Protected
 names retain their entered case in configuration; ordinary UTF-8 matching remains
@@ -85,6 +98,9 @@ Current runtime-capable firmware supports:
 | Channel | `WIDS_CHANNEL` | Reported supported channels for the selected band |
 | Beacon/probe sample factor | `WIDS_BEACON_SAMPLE_N` | One in N, 1–1000 |
 | Heartbeat interval | `WIDS_HEARTBEAT_SECONDS` | 1–300 seconds |
+| BLE enabled | Disabled without saved BLE NVS settings | Boolean, on BLE-capable firmware |
+| BLE scan interval | 100 ms | 10–10240 ms |
+| BLE scan window | 20 ms | 10 ms up to the scan interval |
 
 On upgraded firmware the sample factor applies independently to each BSSID,
 channel and advertisement subtype. New entries/types are reported immediately,
@@ -109,8 +125,9 @@ connection. Firmware validates the whole settings group, tunes the radio and
 saves the settings in NVS before acknowledging success. On failure it restores
 the previous settings. Only an acknowledged response updates the displayed
 effective configuration. A timeout reports uncertainty; reload Configuration to
-check the actual state before retrying. Old firmware remains usable for telemetry
-but its runtime controls are unavailable until upgraded.
+check the actual state before retrying. Telemetry-only legacy firmware remains usable for Wi-Fi telemetry but has no
+runtime controls. Wi-Fi runtime-capable firmware without BLE retains its Wi-Fi
+controls and reports BLE unavailable until upgraded.
 
 Saved sensor settings survive reboots and override compiled defaults. Apply new
 values through the dialog to replace them; reflashing the app alone does not
@@ -138,3 +155,12 @@ collector owns the USB port; web requests never open another serial connection.
 Install Playwright and its Chromium browser into a development environment, then
 run `python -m unittest discover -s collector/tests -p 'browser_*.py' -v`.
 These tests mock network responses and never reconfigure an attached sensor.
+
+## Bluetooth Low Energy monitoring
+
+Apply BLE enable/interval/window with **Apply sensor settings**; these values
+persist on the C6, while BLE filters/alerts/retention persist on the Pi. Older
+firmware keeps Wi-Fi controls but shows BLE unavailable. An enabled scan is
+passive legacy LE 1M only. Increasing the scan window competes with Wi-Fi
+reception on the shared radio. Check **Status** for the effective scan state,
+then **BLE** after Devices for observations. See [BLE monitoring](BLE.md).

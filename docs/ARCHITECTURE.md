@@ -2,24 +2,24 @@
 
 ## Goals
 
-Create a cheap, reproducible, receive-only Wi-Fi IDS with independent RF sensors and a local desktop/SBC dashboard. Prioritise **correct characterization** of observations (not attack certainty) and long-term maintainability over sophisticated but unvalidated RF claims.
+Create a cheap, reproducible, receive-only Wi-Fi IDS and optional BLE advertisement monitor with independent RF sensors and a local desktop/SBC dashboard. Prioritise **correct characterization** of observations (not attack certainty) and long-term maintainability over sophisticated but unvalidated RF claims.
 
 ## Data plane
 
 ```mermaid
 sequenceDiagram
-  participant RF as 802.11 air
+  participant RF as Wi-Fi and BLE air
   participant ESP as ESP32-C6 firmware
   participant USB as USB serial
   participant Pi as Python collector
   participant DB as SQLite
   participant Browser as Web UI
-  RF->>ESP: Beacons, auth, assoc, deauth, disassoc
-  ESP->>ESP: Parse header, sample beacons, enqueue metadata
+  RF->>ESP: Wi-Fi management frames and optional BLE advertisements
+  ESP->>ESP: Parse Wi-Fi headers or copy bounded BLE advertising data
   ESP->>USB: WIDS v1 NDJSON line
   USB->>Pi: Read / validate event
-  Pi->>Pi: Per-sensor/BSSID/channel sliding window
-  Pi->>DB: Frame and alerts transaction
+  Pi->>Pi: Wi-Fi sliding windows or BLE filters, deduplication and rules
+  Pi->>DB: Wi-Fi or BLE observations and alerts transaction
   Browser->>Pi: GET /api/*
   Pi->>Browser: Read-only JSON / HTML
   Browser->>Pi: Authorized configuration request
@@ -69,7 +69,7 @@ RF/driver/USB loss or guarantee every varying SSID payload from one BSSID is see
 | Fixed channel instead of hopping | Fewer missed short bursts | Sensor per channel for full coverage |
 | ESP-IDF/C instead of Arduino | Direct access to supported Wi-Fi APIs, bounded capture callback | SDK/toolchain overhead |
 | Python/FastAPI/SQLite on Pi | Fast local iteration; explainable code | Not for large multi-site event volumes |
-| Store metadata not packet bytes | Minimise privacy exposure and DB size | No PCAP-level forensics |
+| Wi-Fi metadata and bounded BLE advertising data | Limit storage to observation evidence | BLE names and manufacturer data can still identify devices, no PCAP-level forensics |
 | Heuristic rules | Explainability and testability | False positives / blind spots |
 | No transmission/injection | Pure monitoring with lower disruption risk | No active containment |
 
@@ -84,3 +84,20 @@ The ESP sensor supplies monotonic uptime in milliseconds. It does **not** have a
 ## Production hardening path
 
 Do not expose the prototype over the WAN. Add authenticated sensor transport, centrally managed identities, structured logs and metrics, a real network time model, collection backpressure management, and rigorous target-hardware compilation + RF test coverage before any wider deployment.
+
+## Optional BLE path
+
+`ble_monitor.c` uses NimBLE observer-only passive legacy scanning, a separate
+64-entry queue and a 20-report/second USB ceiling. The existing export task owns
+all WIDS output and runtime commands. Radio coexistence is enabled; simultaneous
+Wi-Fi sniffing and BLE scanning remains best effort on the C6 shared radio.
+`ble.py` validates/decode advertisements, applies exact observation/alert rules
+and bounded duplicate/cooldown caches. SQLite uses separate indexed BLE tables
+with independent retention and record caps. The dedicated BLE tab follows
+Devices and loads BLE counts, advertiser summaries and recent reports only when
+active. Shared Alerts includes both protocols; Configuration and Status expose
+BLE controls and health. BLE identities include address type;
+they are not merged into Wi-Fi AP/client roles. See [BLE monitoring](BLE.md).
+
+Wi-Fi storage remains header metadata; the BLE path additionally retains up to
+31 raw advertising-data bytes per observation, never connection payloads/PCAPs.

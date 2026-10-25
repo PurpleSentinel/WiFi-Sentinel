@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "esp_err.h"
+#include "esp_system.h"
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_netif.h"
@@ -30,6 +31,7 @@
 #include "sdkconfig.h"
 #include "ssid_codec.h"
 #include "beacon_sampler.h"
+#include "ble_monitor.h"
 #if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
 #include "driver/usb_serial_jtag.h"
 #include "driver/usb_serial_jtag_vfs.h"
@@ -146,7 +148,21 @@ static void report_config(const char *id, const char *error)
     cJSON_AddNumberToObject(values, "channel", s_config.channel);
     cJSON_AddNumberToObject(values, "beacon_sample_n", s_config.sample_n);
     cJSON_AddNumberToObject(values, "heartbeat_seconds", s_config.heartbeat_seconds);
+    wids_ble_config_t ble = wids_ble_config();
+    cJSON_AddBoolToObject(values, "ble_enabled", ble.enabled);
+    cJSON_AddNumberToObject(values, "ble_interval_ms", ble.interval_ms);
+    cJSON_AddNumberToObject(values, "ble_window_ms", ble.window_ms);
+    cJSON *status = cJSON_AddObjectToObject(root, "ble_status");
+    cJSON_AddBoolToObject(status, "scanning", wids_ble_scanning());
+    cJSON_AddNumberToObject(status, "error", wids_ble_error());
+    cJSON_AddNumberToObject(status, "free_heap_bytes", esp_get_free_heap_size());
+    cJSON_AddNumberToObject(status, "minimum_free_heap_bytes", esp_get_minimum_free_heap_size());
+    cJSON_AddNumberToObject(status, "captured", wids_ble_captured());
+    cJSON_AddNumberToObject(status, "dropped", wids_ble_dropped());
     cJSON *caps = cJSON_AddObjectToObject(root, "capabilities");
+    cJSON_AddBoolToObject(caps, "ble", true);
+    cJSON_AddStringToObject(caps, "ble_mode", "passive_legacy_1m");
+    cJSON_AddStringToObject(caps, "ble_coexistence", "shared_radio_unstable");
     cJSON_AddStringToObject(caps, "chip", CONFIG_IDF_TARGET);
     cJSON_AddStringToObject(caps, "beacon_sampling", "per_bssid_channel_subtype");
     cJSON_AddNumberToObject(caps, "beacon_sampling_capacity", WIDS_SAMPLER_CAPACITY);
@@ -191,10 +207,12 @@ static void handle_command(const char *line)
     const char *error = NULL;
     if (!strcmp(action->valuestring, "set_config")) {
         runtime_config_t next = s_config;
+        wids_ble_config_t old_ble = wids_ble_config(), next_ble = old_ble;
+        bool ble_changed = false;
         const cJSON *values = cJSON_GetObjectItemCaseSensitive(root, "settings");
         const cJSON *sid = cJSON_GetObjectItemCaseSensitive(values, "sensor_id");
         const cJSON *band = cJSON_GetObjectItemCaseSensitive(values, "band");
-        if (!cJSON_IsObject(values) || cJSON_GetArraySize(values) != 5 ||
+        if (!cJSON_IsObject(values) || (cJSON_GetArraySize(values) != 5 && cJSON_GetArraySize(values) != 8) ||
             !cJSON_IsString(sid) || !valid_identifier(sid->valuestring) || !cJSON_IsString(band) ||
             (strcmp(band->valuestring, "2.4") && strcmp(band->valuestring, "5")) ||
             !json_integer(values, "channel", &next.channel) ||
@@ -206,14 +224,31 @@ static void handle_command(const char *line)
             next.band = !strcmp(band->valuestring, "5") ? 5 : 2;
             if (!valid_config(&next)) error = "Unsupported band, channel or setting range";
         }
+        if (!error && cJSON_GetArraySize(values) == 8) {
+            const cJSON *enabled = cJSON_GetObjectItemCaseSensitive(values, "ble_enabled");
+            int interval, window;
+            if (!cJSON_IsBool(enabled) || !json_integer(values, "ble_interval_ms", &interval) ||
+                !json_integer(values, "ble_window_ms", &window) || interval < 10 || interval > 10240 ||
+                window < 10 || window > interval) error = "Invalid BLE scan interval/window";
+            else {
+                next_ble.enabled = cJSON_IsTrue(enabled);
+                next_ble.interval_ms = interval;
+                next_ble.window_ms = window;
+                ble_changed = old_ble.enabled != next_ble.enabled || old_ble.interval_ms != interval || old_ble.window_ms != window || (next_ble.enabled && !wids_ble_scanning());
+            }
+        }
         if (!error) {
             esp_err_t err = esp_wifi_set_promiscuous(false);
             if (err == ESP_OK) err = tune(&next);
+            if (err == ESP_OK && ble_changed) err = wids_ble_apply(next_ble);
+            if (err == ESP_OK) err = nvs_set_blob(s_config_nvs, "ble", &next_ble, sizeof(next_ble));
             if (err == ESP_OK) err = nvs_set_blob(s_config_nvs, "config", &next, sizeof(next));
             if (err == ESP_OK) err = nvs_commit(s_config_nvs);
             if (err != ESP_OK) {
                 /* Restore both radio and pending NVS changes on failure. */
                 ESP_ERROR_CHECK(tune(&s_config));
+                if (ble_changed) wids_ble_apply(old_ble);
+                ESP_ERROR_CHECK(nvs_set_blob(s_config_nvs, "ble", &old_ble, sizeof(old_ble)));
                 ESP_ERROR_CHECK(nvs_set_blob(s_config_nvs, "config", &s_config, sizeof(s_config)));
                 ESP_ERROR_CHECK(nvs_commit(s_config_nvs));
                 error = esp_err_to_name(err);
@@ -390,6 +425,7 @@ static void export_task(void *context)
         if (xQueueReceive(s_queue, &frame, pdMS_TO_TICKS(50)) == pdTRUE) {
             report_frame(&frame);
         }
+        wids_ble_export(s_config.sensor_id);
         if (xTaskGetTickCount() - last_heartbeat >= pdMS_TO_TICKS(s_config.heartbeat_seconds * 1000)) {
             report_heartbeat();
             last_heartbeat = xTaskGetTickCount();
@@ -428,6 +464,12 @@ void app_main(void)
         ESP_LOGE(TAG, "Sensor ID must be <= 40 characters");
         abort();
     }
+    wids_ble_config_t ble = {.enabled = false, .interval_ms = 100, .window_ms = 20}, saved_ble;
+    size = sizeof(saved_ble);
+    if (nvs_get_blob(s_config_nvs, "ble", &saved_ble, &size) == ESP_OK && size == sizeof(saved_ble) &&
+        saved_ble.interval_ms >= 10 && saved_ble.interval_ms <= 10240 &&
+        saved_ble.window_ms >= 10 && saved_ble.window_ms <= saved_ble.interval_ms) ble = saved_ble;
+    wids_ble_init(ble);
     BaseType_t created = xTaskCreate(export_task, "wids_uart", 4096, NULL, 4, NULL);
     if (created != pdPASS) abort();
     ESP_LOGI(TAG, "Receiving on channel %d, reporting only management frames", s_config.channel);

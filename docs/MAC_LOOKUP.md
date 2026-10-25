@@ -1,7 +1,7 @@
 # MAC details and alert sources
 
-Click a MAC address in Overview, Alerts, Reporting, Devices, or a dialog to open
-its details. The popup shows a 24-hour device classification and supporting evidence, separately from retained header roles, directly advertised SSIDs,
+Click a Wi-Fi MAC address in Overview, Alerts, Reporting, Devices, or a dialog
+to open its Wi-Fi/vendor details. BLE advertiser links use their own dialog. The popup shows a 24-hour device classification and supporting evidence, separately from retained header roles, directly advertised SSIDs,
 BSSID contexts, channels, monitoring sensors, first/last seen, frame count and up
 to 100 associated alerts. Empty observations remain explicitly unknown.
 Configuration inputs remain editable; separate address lookup buttons appear
@@ -14,15 +14,16 @@ normally; invalid/non-printable bytes are escaped and literal backslashes are
 doubled. See [SSID matching syntax](CONFIGURATION.md). Legacy sanitized names
 retain their original stored text and have no recoverable raw-byte metadata.
 
-Reporting includes both source and destination MACs. All address links use the
-same rendering helper, including addresses embedded in alert descriptions or
+Wi-Fi Reporting includes both source and destination MACs. Wi-Fi links use the
+shared rendering helper, including addresses embedded in alert descriptions or
 displayed as BSSIDs. Close/Escape restores focus, including when lookup opens
 above the Configuration dialog. Mobile layouts scroll tables inside the popup.
 
 ## Red source addresses
 
-Every new alert records the actual distinct source MACs contributing to its
-triggering window. A protected-SSID alert records the observed beacon/probe
+Every new Wi-Fi alert records the actual distinct source MACs contributing to
+its triggering window. BLE match alerts record the advertiser address and its
+BLE address type; they have no Wi-Fi BSSID or channel. A protected-SSID alert records the observed beacon/probe
 response source. BSSID and source MAC are separate fields and need not match.
 
 Addresses recorded as contributing sources for retained, unexpired alerts are
@@ -100,3 +101,17 @@ Normalization accepts complete colon, hyphen, dotted or twelve-hex-digit MACs.
 Invalid addresses return HTTP 400. No caller-supplied fetch URL is accepted.
 Vendor requests are independent of capture and are made on demand, not by the
 five-second dashboard poll.
+
+## BLE advertiser details
+
+The **BLE** tab after Devices provides address links in both advertiser summaries
+and recent advertisements; BLE source links in Alerts open the same BLE dialog.
+It shows raw advertisement bytes, names, services, company IDs/data, RSSI and
+sensor timestamps. Red highlighting still means a retained source association.
+
+BLE `address_type` is authoritative for privacy handling. A random address never
+initiates MAC registration lookup from this dialog, regardless of its prefix
+bits. A public BLE address may use the existing prefix-only lookup. Bluetooth
+company IDs identify the namespace of advertised manufacturer data; this MAC
+snapshot is not a Bluetooth company registry. No device model, ownership or
+persistent physical identity is inferred. See [BLE interpretation](BLE.md).

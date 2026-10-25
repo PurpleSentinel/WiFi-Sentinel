@@ -50,7 +50,8 @@ Host C tests exercise the same sampler header, including the four-AP periodic
 regression, mixed subtype traffic, runtime factors and eviction stress.
 
 With runtime-capable firmware, the dashboard Configuration dialog can change the
-sensor ID, band/channel, sample factor and heartbeat interval over USB. Settings
+sensor ID, band/channel, sample factor, heartbeat interval and BLE
+enable/scan interval/window over USB. Settings
 are acknowledged after NVS persistence and survive reboots; they override
 compiled defaults. See [configuration](../docs/CONFIGURATION.md) and
 [USB commands](../docs/PROTOCOL.md). Native USB Serial/JTAG installs buffered
@@ -67,3 +68,28 @@ Each `WIDS` line is one JSON object; firmware outputs ordinary ESP-IDF logs too.
 Configure console output to USB-serial or UART at a readable rate (115200 is
 supported for ordinary UART; actual native USB Serial/JTAG transport baud
 settings may not affect physical throughput).
+
+## Bluetooth Low Energy monitoring
+
+Build defaults enable NimBLE observer-only support and software RF coexistence;
+central, peripheral and broadcaster roles are disabled. `ble_monitor.c` uses
+passive legacy LE 1M scanning, a separate 64-report queue and a 20-report/second
+export ceiling. It never advertises, connects, pairs or requests scan responses.
+Extended advertisements and Bluetooth Classic are not collected.
+
+Upgrade the collector first. The enlarged application uses the single-app large
+partition layout: flash the complete generated image set with `idf.py flash` or
+`write_flash @flash_args` from the build directory. Flashing only the application
+onto an old partition layout can fail its size check. NVS remains at 0x9000; do
+not erase it. This is not an OTA layout.
+
+BLE defaults disabled when no saved BLE configuration exists. Enable it through
+Configuration; scan interval/window default to 100/20 ms, with 10–10240 ms allowed
+and window no greater than interval. Settings survive reboot separately from the
+Wi-Fi configuration. Status exposes scan state, report/drop counts, free heap
+and stack/controller errors. Open the **BLE** tab after Devices for observations.
+
+Wi-Fi sniffer RX and BLE scanning share one radio and can miss traffic during
+concurrent monitoring. Separate sensors are needed for dependable simultaneous
+coverage. See [BLE configuration, limits and interpretation](../docs/BLE.md) and
+[measured validation](../docs/VALIDATION.md).

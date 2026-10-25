@@ -1,4 +1,4 @@
-"""Single-process, thread-safe SQLite storage. No raw payloads or PCAPs."""
+"""SQLite storage for Wi-Fi metadata and bounded BLE advertising data."""
 import json
 import sqlite3
 import threading
@@ -12,7 +12,8 @@ from .models import Frame
 
 
 class Store:
-    def __init__(self, filename: Path, retention_days: int = 7):
+    def __init__(self, filename: Path, retention_days: int = 7,
+                 ble_retention_days: int = 7, ble_max_records: int = 100000):
         self.lock = threading.RLock()
         filename.parent.mkdir(parents=True, exist_ok=True)
         self.db = sqlite3.connect(str(filename), check_same_thread=False, timeout=15)
@@ -21,6 +22,16 @@ class Store:
             self.db.execute("PRAGMA journal_mode=WAL")
             self.db.execute("PRAGMA busy_timeout=15000")
             self.db.executescript("""
+                CREATE TABLE IF NOT EXISTS ble_observations (
+                    id INTEGER PRIMARY KEY, timestamp TEXT NOT NULL, sensor_id TEXT NOT NULL,
+                    address TEXT NOT NULL, address_type TEXT NOT NULL, rssi INTEGER NOT NULL,
+                    payload_hex TEXT NOT NULL, event_type INTEGER NOT NULL, uptime_ms INTEGER NOT NULL);
+                CREATE INDEX IF NOT EXISTS ix_ble_ts ON ble_observations(timestamp);
+                CREATE INDEX IF NOT EXISTS ix_ble_address ON ble_observations(address,address_type,timestamp);
+                CREATE TABLE IF NOT EXISTS ble_alerts (
+                    id INTEGER PRIMARY KEY, timestamp TEXT NOT NULL, sensor_id TEXT NOT NULL,
+                    address TEXT NOT NULL, address_type TEXT NOT NULL, expression TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS ix_ble_alert_ts ON ble_alerts(timestamp);
                 CREATE TABLE IF NOT EXISTS frames (
                     id INTEGER PRIMARY KEY, timestamp TEXT NOT NULL, sensor_id TEXT NOT NULL,
                     channel INTEGER NOT NULL, subtype TEXT NOT NULL, sa TEXT NOT NULL,
@@ -48,7 +59,11 @@ class Store:
             if 'ssid_hex' not in frame_columns:
                 self.db.execute('ALTER TABLE frames ADD COLUMN ssid_hex TEXT')
             self.db.commit()
+        self.ble_retention_days = ble_retention_days
+        self.ble_max_records = ble_max_records
         self.retention_days = retention_days
+        self.ble_counts = {table: self.db.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
+                           for table in ('ble_observations', 'ble_alerts')}
         self.cleanup()
 
     @staticmethod
@@ -97,7 +112,9 @@ class Store:
         rows = self.rows('''SELECT DISTINCT value AS mac FROM alerts,json_each(alerts.source_macs)
                             WHERE timestamp >= ? ORDER BY mac''', (after,))
         unknown = self.rows('SELECT COUNT(*) AS count FROM alerts WHERE timestamp >= ? AND source_macs IS NULL', (after,))[0]['count']
-        return {'macs': [row['mac'] for row in rows], 'legacy_alerts_without_sources': unknown}
+        ble_after = (datetime.now(timezone.utc) - timedelta(days=self.ble_retention_days)).isoformat(timespec='seconds')
+        ble = self.rows('SELECT DISTINCT address AS mac FROM ble_alerts WHERE timestamp >= ?', (ble_after,))
+        return {'macs': sorted({row['mac'] for row in rows + ble}), 'legacy_alerts_without_sources': unknown}
 
     def mac_details(self, mac: str) -> dict:
         after = (datetime.now(timezone.utc) - timedelta(days=self.retention_days)).isoformat(timespec='seconds')
@@ -134,11 +151,20 @@ class Store:
             sensors = self.db.execute("SELECT COUNT(*) FROM sensors").fetchone()[0]
             by_subtype = [dict(r) for r in self.db.execute(
                 "SELECT subtype,COUNT(*) count FROM frames WHERE timestamp >= ? GROUP BY subtype ORDER BY count DESC", (after,))]
-        return {"frames_24h": frames, "alerts_24h": alerts, "sensors": sensors, "by_subtype": by_subtype}
+        ble = self.rows('SELECT COUNT(*) AS count FROM ble_observations WHERE timestamp >= ?', (after,))[0]['count']
+        ble_alerts = self.rows('SELECT COUNT(*) AS count FROM ble_alerts WHERE timestamp >= ?', (after,))[0]['count']
+        return {"frames_24h": frames, "alerts_24h": alerts + ble_alerts, "sensors": sensors,
+                "by_subtype": by_subtype, 'ble_observations_24h': ble}
 
     def cleanup(self) -> None:
         before = (datetime.now(timezone.utc) - timedelta(days=self.retention_days)).isoformat(timespec="seconds")
         with self.lock, self.db:
+            ble_before = (datetime.now(timezone.utc) - timedelta(days=self.ble_retention_days)).isoformat(timespec='seconds')
+            self.db.execute('DELETE FROM ble_observations WHERE timestamp < ?', (ble_before,))
+            self.db.execute('DELETE FROM ble_alerts WHERE timestamp < ?', (ble_before,))
+            self.ble_counts = {table: self.db.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
+                               for table in self.ble_counts}
+            self._trim_ble()
             self.db.execute("DELETE FROM frames WHERE timestamp < ?", (before,))
             self.db.execute("DELETE FROM alerts WHERE timestamp < ?", (before,))
 
@@ -162,6 +188,58 @@ class Store:
         rows = self._classified_devices(limit, role)
         return {'window_hours': 24, 'limit': limit, 'role': role, 'has_more': len(rows) > limit,
                 'devices': rows[:limit]}
+
+    def _trim_ble(self):
+        # Indexed primary-key cutoff bounds both tables, even under address churn.
+        for table in ('ble_observations', 'ble_alerts'):
+            if self.ble_counts[table] <= self.ble_max_records:
+                continue
+            # Trim a batch to avoid scanning 100k keys on every advertisement.
+            target = self.ble_max_records - max(1, self.ble_max_records // 10)
+            self.db.execute(f'DELETE FROM {table} WHERE id <= (SELECT id FROM {table} ORDER BY id DESC LIMIT 1 OFFSET ?)',
+                            (target,))
+            self.ble_counts[table] = self.db.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
+
+    def add_ble(self, ad, accept, matches):
+        ts = self.timestamp()
+        with self.lock, self.db:
+            if accept:
+                self.db.execute('INSERT INTO ble_observations (timestamp,sensor_id,address,address_type,rssi,payload_hex,event_type,uptime_ms) VALUES (?,?,?,?,?,?,?,?)',
+                                (ts, ad.sensor_id, ad.address, ad.address_type, ad.rssi, ad.payload_hex, ad.event_type, ad.uptime_ms))
+                self.ble_counts['ble_observations'] += 1
+            for expression in matches:
+                self.db.execute('INSERT INTO ble_alerts (timestamp,sensor_id,address,address_type,expression) VALUES (?,?,?,?,?)',
+                                (ts, ad.sensor_id, ad.address, ad.address_type, expression))
+                self.ble_counts['ble_alerts'] += 1
+            self._trim_ble()
+
+    @staticmethod
+    def decode_ble(row):
+        from .ble import decode_ad
+        row.update(decode_ad(bytes.fromhex(row['payload_hex'])))
+        return row
+
+    def ble_observations(self, limit=100, address=None, address_type=None):
+        return [self.decode_ble(row) for row in self.rows(
+            'SELECT * FROM ble_observations WHERE (? IS NULL OR address=?) AND (? IS NULL OR address_type=?) ORDER BY id DESC LIMIT ?',
+            (address, address, address_type, address_type, limit))]
+
+    def ble_devices(self, limit=200):
+        after = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat(timespec='seconds')
+        rows = self.rows('''WITH groups AS (SELECT sensor_id,address,address_type,COUNT(*) observation_count,
+            MIN(timestamp) first_seen,MAX(timestamp) last_seen,MAX(id) latest_id
+            FROM ble_observations WHERE timestamp >= ? GROUP BY sensor_id,address,address_type)
+            SELECT o.*,g.observation_count,g.first_seen,g.last_seen FROM groups g
+            JOIN ble_observations o ON o.id=g.latest_id ORDER BY o.id DESC LIMIT ?''', (after, limit + 1))
+        return {'devices': [self.decode_ble(row) for row in rows[:limit]], 'has_more': len(rows) > limit,
+                'window_hours': 24, 'note': 'Advertiser addresses, not unique physical devices; private addresses rotate.'}
+
+    def all_alerts(self, limit=100):
+        return self.rows('''SELECT id,timestamp,sensor_id,rule,severity,bssid,channel,frame_count,details,source_macs,
+            'wifi' protocol,NULL address_type FROM alerts UNION ALL
+            SELECT id,timestamp,sensor_id,'ble_match' rule,'medium' severity,NULL bssid,NULL channel,1 frame_count,
+            'BLE advertisement matched ' || expression details,json_array(address) source_macs,'ble' protocol,address_type
+            FROM ble_alerts ORDER BY timestamp DESC,id DESC LIMIT ?''', (limit,))
 
     def close(self) -> None:
         with self.lock:

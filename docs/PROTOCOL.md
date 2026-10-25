@@ -117,3 +117,45 @@ Data reads and protected configuration writes:
 Read endpoints are **unauthenticated** and bind to loopback by default. POST
 endpoints require a configuration key and matching request origin. See
 [Configuration](CONFIGURATION.md). Do not expose the service to the internet.
+
+## `ble` event (optional passive legacy advertisements)
+
+```json
+{"v":1,"kind":"ble","sensor_id":"c6-sensor-01","address":"cc:bb:aa:11:22:33","address_type":"random","rssi":-55,"event_type":0,"payload_hex":"05095465737403030f18","uptime_ms":123450}
+```
+
+`address_type` is `public` or `random`, taken from the BLE report, not inferred
+from MAC bits. `event_type` is legacy advertisement type 0–3; scan responses (4)
+are excluded. `payload_hex` preserves 0–31 advertisement bytes (0–62 hex digits).
+RSSI must be -127..20 and uptime an unsigned 32-bit integer. The collector decodes
+AD structures and flags malformed fields without losing the original bytes.
+
+BLE-capable `config_ack` adds `ble_enabled` (boolean), `ble_interval_ms` and
+`ble_window_ms` to `config`, and `ble:true`, `ble_mode:passive_legacy_1m`, and
+`ble_coexistence:shared_radio_unstable` to `capabilities`. Top-level `ble_status`
+contains `scanning` (boolean), `captured` and `dropped` (unsigned counters),
+`error` (signed stack/controller status), and `free_heap_bytes` /
+`minimum_free_heap_bytes` (whole-sensor heap measurements).
+The complete sensor settings object has eight fields; legacy five-field commands
+remain supported and preserve BLE settings. All three BLE fields must be supplied
+together when using the eight-field command. Timing must be 10–10240 ms with
+window no greater than interval. See [BLE monitoring](BLE.md) for limits.
+
+Additional reads:
+
+- `GET /api/ble/observations?limit=100` (max 500), optional `address` and
+  `address_type=public|random` filters.
+- `GET /api/ble/devices?limit=200` (max 500), latest retained observations grouped
+  by sensor/address/type in the last 24 hours; includes `has_more`.
+- `/api/summary` adds `ble_observations_24h`; alert totals include BLE alerts.
+- `/api/alerts` adds `protocol` (`wifi` or `ble`), and BLE `address_type`.
+  BLE `bssid` and `channel` are null, with `source_macs` holding the advertiser.
+  Alert IDs are unique within their protocol, not across both tables.
+
+
+BLE API results feed the dedicated **BLE** tab after Devices. Wi-Fi `/api/devices`
+and `/api/frames` remain Wi-Fi-only. Observation records include decoded
+`local_name`, `service_uuids`, `manufacturer_data` (company ID and raw data),
+`service_data` (UUID and raw data) and `ad_malformed`, alongside the canonical
+`payload_hex`. BLE device summaries add first/last seen and observation counts;
+these are retained advertisement/address counts, not unique physical devices.
