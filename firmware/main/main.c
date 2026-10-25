@@ -1,5 +1,5 @@
 /*
- * WiFi Sentinel v1.1.0
+ * WiFi Sentinel v1.2.0
  * Receive-only 802.11 management-frame telemetry for ESP32-C5/C6.
  * No esp_wifi_80211_tx, association, injection, or radio jamming functions.
  *
