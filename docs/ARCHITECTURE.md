@@ -54,7 +54,7 @@ RF/driver/USB loss or guarantee every varying SSID payload from one BSSID is see
 ## Collector components
 
 - `models.py` validates wire framing/version/addresses/channel/rssi/subtypes.
-- `engine.py` owns a single lock for deterministic ordering, detector and DB inserts. A dedicated retention worker attempts cleanup every 60 seconds independently of serial traffic, using the same lock for policy consistency. The web lifespan stops and joins workers before closing SQLite.
+- `engine.py` owns a single lock for deterministic ordering, detector and DB inserts. A dedicated retention worker checks cleanup on the configured interval independently of serial traffic, using the same lock for policy consistency and bounded per-table batches. The web lifespan stops and joins workers before closing SQLite.
 - `detection.py` observes sliding windows keyed by sensor + BSSID + channel + category. Rules are detection heuristics; they do not authenticate transmitter identity.
 - `storage.py` uses SQLite WAL and a lock. No external brokers/database needed for a single sensor. Serialized writes simplify correctness for modest telemetry volume.
 - `webapp.py` serves dashboard data, a Status dialog, and key-protected configuration writes with same-origin checks.
@@ -126,3 +126,7 @@ changes or active ranging are introduced. See [explorer](BLE_EXPLORER.md) and
 ## Explicit data purge
 
 `PurgeManager` keeps bounded expiring previews and operation summaries in memory. A single worker deletes historical rows in committed batches through a separate connection, coordinating with Engine/Store locks and BLE count accounting. It invalidates System metrics at completion without resetting detectors or changing retention policy. See [Purge architecture and limits](PURGE.md).
+
+## Automatic retention policy
+
+`RetentionManager` previews fixed policy values with a read-only SQLite connection and applies authenticated changes through the existing settings file. `Engine` runs immediate and scheduled cleanup in bounded batches, reports progress/next run and coordinates with manual Purge. Store startup cleanup respects the automatic age switch, while the BLE count cap remains active. See [Retention design](RETENTION.md).

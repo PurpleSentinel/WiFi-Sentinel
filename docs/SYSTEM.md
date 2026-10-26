@@ -56,8 +56,7 @@ version. The collector currently does not track an application schema version
 are different from free disk space. WAL can temporarily increase total footprint.
 File sizes and SQL metadata are separate snapshots and may differ during writes.
 
-Retention shows effective Wi-Fi and BLE days, the BLE record cap per table, the
-one-hour BLE dashboard window, and the 60-second cleanup interval. The display
+Retention shows effective Wi-Fi and BLE hours, automatic age deletion, the BLE record cap per table, the one-hour BLE dashboard window, and the configured cleanup interval. The display
 window does not delete retained history. Record caps and cleanup cadence mean
 retention is a policy rather than a promise that exactly that many days remain.
 
@@ -96,3 +95,5 @@ USB configuration changes. First CPU sample being unavailable is expected.
 ## Purge historical data
 
 Choose **Purge** to open the separate retention-age workflow. [Data purge](PURGE.md) describes preview, authorization, permanent deletion, cancellation and backup requirements. Metrics reads remain read-only.
+
+**Configuration → Retention** controls this ongoing policy. See [Automatic retention](RETENTION.md) for timing, preview and status meanings.

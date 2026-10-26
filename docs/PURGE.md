@@ -20,7 +20,7 @@ Ages must be positive and at most 36,500 days; the browser accepts ages from
 0.001 units. Fractional ages are supported. Cutoffs have one-second resolution.
 
 These are one-time choices. Scheduled retention settings remain unchanged.
-**Open Configuration** takes you to ongoing retention policy controls.
+**Open Configuration** takes you to **Retention**, where ongoing automatic age deletion, schedule and BLE caps are managed. See [Automatic retention](RETENTION.md).
 
 ## 2. Review the impact and 3. Confirm deletion
 

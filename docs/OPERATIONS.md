@@ -42,20 +42,19 @@ curl -s 'http://127.0.0.1:8181/api/alerts?limit=10'
 
 ## Retention
 
-Expired frames and alerts are deleted at collector startup, immediately when a
-retention setting is saved, and by a dedicated worker while `serve` is running.
-The worker waits **60 seconds between cleanup attempts**, independently of event
-counts, serial connectivity, dashboard requests or paused display updates. This
-also runs when no serial port is configured. Under normal operation, expiry is
-enforced within one scheduling interval plus cleanup/lock execution time.
+**Configuration → Retention** manages ongoing Wi-Fi/BLE age limits, the automatic
+age deletion switch, cleanup interval and the BLE record cap. It previews the
+impact before a key-protected save. Age cleanup runs at startup when enabled,
+after a confirmed policy save and on the configured schedule (default 60 seconds).
+The BLE cap remains active even when age deletion is disabled. Cleanup uses
+committed batches of at most 500 rows per table and yields between batches.
 
-The startup log reports the interval. SQLite/filesystem failures are logged and
-retried on the next interval; investigate errors if cleanup cannot complete.
-Cleanup shares the ingestion/configuration lock and SQLite lock, so it uses the
-current retention policy and cannot race with a policy update. Shutdown wakes
-waiting workers and joins them before closing the database. Sensor registration
-and last-seen rows are not automatically deleted. CLI demo/replay operations
-retain startup cleanup; the recurring worker belongs to the running web service.
+The Retention window and `GET /api/retention` show last run, rows deleted,
+errors, and next scheduled time. Failed runs retry on the next interval. A manual
+Purge blocks a new automatic run until it finishes. Shutdown joins workers before
+SQLite closes. Sensor records/labels, configuration and vendor cache are excluded.
+CLI demo/replay construction still applies startup policy. See [Automatic
+retention](RETENTION.md) for exact cutoffs, preview, compatibility and backup.
 
 ## Backup / incident preservation
 
@@ -105,7 +104,7 @@ curl -s 'http://127.0.0.1:8181/api/ble/observations?limit=20'
 | BLE history disappears sooner than time retention | Independent BLE record cap trims oldest batches to about 90% of the configured cap |
 
 BLE time retention defaults to seven days and the cap to 100,000 rows per BLE
-table. The existing 60-second cleanup worker also expires BLE data while idle.
+table. The configured cleanup worker also expires BLE data while idle when automatic age deletion is enabled.
 Deleted SQLite pages are reusable; the file does not immediately shrink. Empty
 BLE alert rules disable BLE alerts, and empty observation filters accept all.
 Default scan interval/window are 100/20 ms; saved NVS values survive reboot.

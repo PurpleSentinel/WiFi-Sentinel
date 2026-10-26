@@ -89,6 +89,9 @@ class PurgeManager:
                 return copy.deepcopy(self.jobs[item['job']])
             if self.worker and self.worker.is_alive():
                 raise RuntimeError('Another purge is running')
+            retention = getattr(self.engine, 'retention_manager', None)
+            if self.engine.retention_lock.locked() or retention is not None and retention.worker is not None and retention.worker.is_alive():
+                raise RuntimeError('Automatic retention cleanup is running; retry shortly')
             preview = item['preview']
             if not any(row['eligible'] for row in preview['counts'].values()):
                 raise ValueError('No matching records; nothing to purge')

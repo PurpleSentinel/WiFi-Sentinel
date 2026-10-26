@@ -37,11 +37,15 @@ The following controls apply immediately and are saved atomically on the Pi:
 | Authentication threshold | `WIDS_AUTH_THRESHOLD` | 1–1,000,000 frames |
 | Failed authentication threshold | `WIDS_FAILED_AUTH_THRESHOLD` | 1–1,000,000 frames |
 | Alert cooldown | `WIDS_COOLDOWN_SECONDS` | 1–86,400 seconds |
-| Retention | `WIDS_RETENTION_DAYS` | 1–3650 days |
+| Wi-Fi age (legacy days) | `WIDS_RETENTION_DAYS` | 1–3650 days; default 7 |
+| Wi-Fi age override (hours) | `WIDS_RETENTION_HOURS` | 1–87,600 hours; overrides days when set |
 | Monitored BSSIDs | `WIDS_MONITORED_BSSIDS` | One MAC per line; empty monitors all |
 | Protected SSIDs | `WIDS_PROTECTED_SSIDS` | One SSID per line; empty disables this rule |
 | Trusted BSSIDs | `WIDS_TRUSTED_BSSIDS` | One MAC per line |
-| BLE retention | `WIDS_BLE_RETENTION_DAYS` | 1–3650 days; default 7 |
+| BLE age (legacy days) | `WIDS_BLE_RETENTION_DAYS` | 1–3650 days; default 7 |
+| BLE age override (hours) | `WIDS_BLE_RETENTION_HOURS` | 1–87,600 hours; overrides days when set |
+| Automatic age deletion | `WIDS_AUTOMATIC_AGE_DELETION` | true/false; default true |
+| Cleanup interval | `WIDS_CLEANUP_INTERVAL_SECONDS` | 15–86,400 seconds; default 60 |
 | BLE identical-report suppression | `WIDS_BLE_DUPLICATE_SECONDS` | 0–3600 seconds; default 10; 0 disables |
 | BLE maximum records | `WIDS_BLE_MAX_RECORDS` | 100–1,000,000 per BLE table; default 100,000 |
 | BLE observation filters | `WIDS_BLE_FILTERS` | Up to 256 exact rules; empty accepts all |
@@ -53,8 +57,7 @@ separated in the environment. Rules are ORed; names match case insensitively.
 Company IDs are Bluetooth identifiers, not MAC-prefix registrations. See
 [BLE rule semantics and limits](BLE.md).
 
-Saving starts fresh detector windows and BLE duplicate/cooldown caches. Shortening retention immediately removes
-expired records. SSID matching currently remains case-insensitive, and firmware
+Saving detection settings starts fresh detector windows. Use **Configuration → Retention** to preview and save automatic age limits and cleanup timing; background deletion begins after confirmation. SSID matching currently remains case-insensitive, and firmware
 now preserves the original SSID bytes, including non-ASCII names. Protected
 names retain their entered case in configuration; ordinary UTF-8 matching remains
 case-insensitive as before. SSIDs are limited to 32 bytes, not 32 characters.
@@ -70,9 +73,7 @@ cannot be expressed conveniently in the line/comma-separated configuration.
 Hidden zero-length SSIDs are not treated as protected named networks. Older
 stored/sanitized SSIDs cannot be reconstructed retroactively.
 
-While the web service is running, a dedicated worker attempts retention cleanup
-every 60 seconds even without sensor traffic. See [Operations](OPERATIONS.md)
-for timing, failure handling and shutdown behavior.
+While the web service is running, a dedicated worker checks retention on the configured interval even without sensor traffic. See [Automatic retention](RETENTION.md) for timing, startup/save behavior and failure handling.
 
 Saved values live beside the database, using the database stem with suffix
 `.settings.json` (default `sentinel.settings.json`). They override environment
@@ -183,9 +184,12 @@ or make range estimates physically accurate. See [ranging controls](BLE_RANGING.
 BLE summary and advertiser-list numbers use a rolling one-hour reporting window.
 This is separate from `WIDS_BLE_RETENTION_DAYS`: shortening the displayed window
 does not delete stored observations or reset sensor counters, aliases or notes.
-Wi-Fi views retain their 24-hour reporting window. This update adds no new
-configuration setting and does not change the existing retention controls.
+Wi-Fi views retain their 24-hour reporting window. This display window does not alter the [automatic retention policy](RETENTION.md).
 
 The **System** dialog reports effective retention and BLE caps alongside resource/database information; it has no configuration controls. See [System](SYSTEM.md).
 
 **System → Purge** uses current retention settings as optional defaults for a one-time deletion. It never changes ongoing retention policy. See [Data purge](PURGE.md).
+
+## Automatic Retention window
+
+Use the **Retention** button in Configuration for independent Wi-Fi/BLE ages, automatic age deletion, schedule and BLE record cap. It previews UTC cutoffs and eligible rows before a policy save; destructive changes require explicit confirmation. See [Automatic retention](RETENTION.md). The main Configuration form now contains detection controls; the generic collector write endpoint rejects retention fields.

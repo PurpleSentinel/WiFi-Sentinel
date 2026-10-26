@@ -16,7 +16,13 @@ LIMITS = {
     'failed_auth_threshold': (1, 1000000), 'cooldown_seconds': (1, 86400),
     'retention_days': (1, 3650), 'ble_retention_days': (1, 3650),
     'ble_duplicate_seconds': (0, 3600), 'ble_max_records': (100, 1000000),
+    'retention_hours': (1, 87600), 'ble_retention_hours': (1, 87600),
+    'cleanup_interval_seconds': (15, 86400),
 }
+BOOLEANS = ('automatic_age_deletion',)
+RETENTION_FIELDS = ('retention_days', 'ble_retention_days', 'retention_hours',
+                    'ble_retention_hours', 'automatic_age_deletion',
+                    'cleanup_interval_seconds', 'ble_max_records')
 LISTS = ('monitored_bssids', 'protected_ssids', 'trusted_bssids', 'ble_filters', 'ble_alert_rules')
 RESTART_FIELDS = ('database', 'host', 'port', 'serial_port', 'baud')
 
@@ -26,13 +32,18 @@ def settings_path(settings: Settings) -> Path:
 
 
 def validate_collector(values: dict) -> dict:
-    if not isinstance(values, dict) or values.keys() - (LIMITS.keys() | set(LISTS)):
+    if not isinstance(values, dict) or values.keys() - (LIMITS.keys() | set(LISTS) | set(BOOLEANS)):
         raise ValueError('Unknown or restart-only collector setting')
     result = {}
     for name, value in values.items():
-        if name in LIMITS:
+        if name in BOOLEANS:
+            if type(value) is not bool:
+                raise ValueError(f'{name} must be true or false')
+        elif name in LIMITS:
             low, high = LIMITS[name]
-            if type(value) is not int or not low <= value <= high:
+            if value is None and name in ('retention_hours', 'ble_retention_hours'):
+                pass
+            elif type(value) is not int or not low <= value <= high:
                 raise ValueError(f'{name} must be an integer in {low}..{high}')
         else:
             if not isinstance(value, list) or len(value) > 256:
@@ -54,7 +65,8 @@ def validate_collector(values: dict) -> dict:
 
 def load_settings(settings: Settings) -> Settings:
     validate_collector({name: list(getattr(settings, name)) if name in LISTS else getattr(settings, name)
-                        for name in (*LIMITS, *LISTS) if name.startswith('ble_')})
+                        for name in (*LIMITS, *LISTS, *BOOLEANS)
+                        if name.startswith('ble_') or name in RETENTION_FIELDS})
     path = settings_path(settings)
     if path.exists():
         return replace(settings, **validate_collector(json.loads(path.read_text())))
@@ -65,7 +77,7 @@ def save_settings(settings: Settings) -> None:
     path = settings_path(settings)
     values = asdict(settings)
     data = {name: list(values[name]) if name in LISTS else values[name]
-            for name in (*LIMITS, *LISTS)}
+            for name in (*LIMITS, *LISTS, *BOOLEANS)}
     validate_collector(data)
     # A unique temporary file avoids conflicting saves; replace is atomic.
     temp = path.with_name(path.name + '.' + secrets.token_hex(6) + '.tmp')

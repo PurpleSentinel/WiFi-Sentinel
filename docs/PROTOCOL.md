@@ -211,3 +211,7 @@ latest 100 retained raw observations remain inspectable beyond that hour.
 ## Purge API
 
 `GET /api/purge` reports current/latest operation and retention defaults. `POST /api/purge/preview` calculates read-only eligibility. Key-protected same-origin `POST /api/purge/start` and `/api/purge/cancel` execute or stop an explicitly previewed operation. See [API schemas, state and access](PURGE.md#http-api-and-access).
+
+## Automatic retention API
+
+`GET /api/retention` reports effective policy, source and run status. `POST /api/retention/preview` reads UTC cutoffs and counts; key-protected same-origin `POST /api/retention/apply` persists and applies a previewed policy. See [Retention API and validation](RETENTION.md#api-and-access).

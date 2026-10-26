@@ -199,3 +199,7 @@ The **System** button between Configuration and Status opens host health and rea
 ## Purge dialog
 
 **System → Purge** opens a separate age-based history purge dialog with preview, typed confirmation, progress and stopping between batches. Pause freezes automatic progress, not a running purge. See [Data purge](PURGE.md).
+
+## Automatic Retention window
+
+**Configuration → Retention** opens the separate ongoing-policy window with Wi-Fi/BLE age presets or custom hours/days, automatic age deletion, a cleanup interval and BLE cap. A read-only preview shows cutoffs and eligible counts. See [Automatic retention](RETENTION.md).

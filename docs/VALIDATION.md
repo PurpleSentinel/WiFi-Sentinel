@@ -431,3 +431,9 @@ load the new queries; sensor and host network settings were unchanged.
 `test_purge.py` covers strict UTC cutoff boundaries, scopes, invalid ages, read-only previews, expiry, preserved records, BLE accounting, partial failure, cancellation, duplicate/concurrent jobs, cooperating ingestion/retention and API authorization. `browser_purge.py` covers preview invalidation, confirmation, errors, progress/Pause, no-match state, key clearing, nested-dialog focus and mobile layout. Destructive checks use isolated databases. See [Purge](PURGE.md).
 
 On the deployed Raspberry Pi 4, an isolated 100,000-frame fixture preview took 0.058 seconds and purge took 6.322 seconds. Concurrent ingestion preserved all 202 new frames; the maximum measured ingest call was 0.020 seconds. This is a local measurement, not a latency guarantee. Live production verification uses preview only.
+
+## Automatic retention validation
+
+`test_automatic_retention.py` covers legacy day settings and hour precedence, exact UTC boundaries, disabled age cleanup with active BLE cap, preview/authorization, persistence, busy coordination, scheduling and error retry. `browser_retention.py` checks the nested Configuration window, custom ages, preview invalidation, key handling, Pause, focus and mobile layout. Destructive tests use isolated databases; live Pi verification previews only. See [Retention](RETENTION.md).
+
+On the Raspberry Pi 4, an isolated 100,000-frame fixture gave a 0.053-second retention preview and a 6.131-second automatic cleanup. All 202 concurrent new frames survived; the longest measured ingest call was 0.020 seconds. These are fixture measurements, not latency guarantees.
