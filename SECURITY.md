@@ -1,5 +1,7 @@
 # Security & privacy
 
+> **Experimental project:** WiFi Sentinel exists to explore and understand the ESP32-C6 and its Wi-Fi/BLE capabilities. It is not a production-capable security solution and does not conform to expected secure design practices. Do not rely on it as your sole security monitor or expose its dashboard/API to untrusted networks. The known limitations below are part of this experimental scope.
+
 ## Intended use
 
 WiFi Sentinel is a **passive security observation** prototype for wireless networks the operator is authorised to monitor. It performs no injection, disconnection, cracking, association or active network interference. It should not be positioned as a professional validated WIDS without independent hardware/field testing.
