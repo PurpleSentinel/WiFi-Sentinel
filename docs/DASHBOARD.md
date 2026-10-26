@@ -9,7 +9,7 @@ filter and does not reload the page or change sensor monitoring.
 | Alerts | Latest 200 retained alerts, severity filter, full alert context and JSON export |
 | Reporting | 24-hour subtype counts, retained channel counts and the latest 100 observed frames |
 | Devices | Up to 200 most recently observed unicast MAC addresses from the last 24 hours, with AP/client/unknown classifications, evidence, directly advertised SSIDs, BSSID contexts, channels, last-seen UTC, frame counts and sensors |
-| BLE | 24-hour summaries, searchable/filterable advertiser explorer, evidence-based labels, protected aliases/notes and approximate RSSI curve; raw reports in expandable sections |
+| BLE | Rolling one-hour summaries, searchable/filterable advertiser explorer, evidence-based labels, protected aliases/notes and approximate RSSI curve; raw reports in expandable sections |
 
 Only the active tab's data is requested on the five-second refresh cadence.
 Switching tabs cancels obsolete dashboard requests. Pause updates freezes display
@@ -100,7 +100,7 @@ monitoring activity.
 ## Bluetooth Low Energy monitoring
 
 The **BLE** tab sits immediately to the right of **Devices**. It contains the
-24-hour retained observation count, up to 200 advertiser summaries grouped by
+one-hour retained observation count, up to 200 advertiser summaries grouped by
 sensor/address/type, and the last 100 advertisements. Devices and Reporting
 contain Wi-Fi data only; BLE API reads occur while the BLE tab is active.
 
@@ -178,6 +178,16 @@ currently loaded rows (up to the most recent 200 for the role filter), not every
 retained database identity; the status line makes this scope explicit.
 
 The BLE summary's **Unique devices** card matches Capture Freshness and counts
-distinct advertiser MAC addresses across sensors and address types over 24 hours. It uses all
+distinct advertiser MAC addresses across sensors and address types over the last hour. It uses all
 retained observations, not the table cap or filters, and does not claim an exact
 physical-device count. See [metric definition](BLE_EXPLORER.md#unique-devices-metric).
+
+## Rolling-hour BLE view
+
+BLE counts, advertiser summaries and selected-advertiser observation counts use
+a rolling **last hour**. MAC counts are still addresses, not verified physical
+devices; a shorter window reduces accumulated rotated addresses but does not
+resolve them. No history is deleted or manually reset. Raw retained observations,
+operator labels and configured retention remain intact; Wi-Fi reporting stays
+on its existing 24-hour window. Reload the browser page after upgrading to see
+the 1h labels.

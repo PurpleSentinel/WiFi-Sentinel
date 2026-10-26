@@ -177,3 +177,11 @@ RSSI reference/exponent, plot range, median window and calibration assertion are
 per-identity browser-session model inputs, not radio or collector policy settings.
 They require no key and disappear on reload. They do not affect Wi-Fi/BLE capture
 or make range estimates physically accurate. See [ranging controls](BLE_RANGING.md).
+
+## BLE display window
+
+BLE summary and advertiser-list numbers use a rolling one-hour reporting window.
+This is separate from `WIDS_BLE_RETENTION_DAYS`: shortening the displayed window
+does not delete stored observations or reset sensor counters, aliases or notes.
+Wi-Fi views retain their 24-hour reporting window. This update adds no new
+configuration setting and does not change the existing retention controls.

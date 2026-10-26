@@ -18,7 +18,7 @@ WiFi Sentinel passively captures **802.11 management-frame metadata** and option
 | Protected SSID / unfamiliar BSSID alert | Implemented | Heuristic; configured allowlists needed |
 | Passive legacy BLE advertisements | Tested on C6 | Optional passive LE 1M scan, raw AD bytes, names, services and manufacturer data; shared radio limits simultaneous coverage |
 | BLE filters, alerts and retention | Implemented and tested | Exact rules, bounded duplicate/cooldown caches and independent record/time limits |
-| Dedicated BLE dashboard tab | Implemented and tested | After Devices; 24-hour count, advertiser summaries, latest advertisements and clickable details |
+| Dedicated BLE dashboard tab | Implemented and tested | After Devices; rolling one-hour count, advertiser summaries, latest advertisements and clickable details |
 | Sensor IDs and replay | Implemented | One live USB port per collector process; multi-port fan-in is a roadmap item |
 | Local web UI / API / SQLite | Implemented | Localhost binding, no login interface |
 | Synthetic demonstration and deterministic tests | Implemented | No RF attacks generated |
@@ -165,7 +165,7 @@ BLE retention and a 100,000-record cap per BLE table; attached sensor identity a
 
 ## Bluetooth Low Energy monitoring
 
-Open **BLE** after **Devices** for its 24-hour observation count, advertiser
+Open **BLE** after **Devices** for its rolling one-hour observation count, advertiser
 summaries and latest advertisements. **Devices** and **Reporting** show Wi-Fi
 data. Configuration and Status cover both radios; Alerts includes optional BLE
 rule matches. Passive legacy LE 1M scanning excludes Bluetooth Classic, extended

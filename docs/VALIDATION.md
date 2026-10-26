@@ -405,3 +405,19 @@ sensor/type identities counts as one unique device in tests. A live snapshot
 showed 975 distinct MACs and 975 advertiser identities: equality is legitimate
 when each MAC has only one sensor/type combination. Collector tests (124) and
 both BLE browser checks pass with the corrected definition.
+
+## Rolling-hour BLE display (2026-10-26)
+
+BLE advertisement counts, MAC-only counts, advertiser identities and list/name
+aggregates now use a rolling last hour. The selected advertiser's observation
+count also uses that hour; raw history remains inspectable and no retention or
+stored observations are reset. Existing daily summary fields remain available,
+and Wi-Fi's 24-hour reporting is unchanged.
+
+125 collector tests and ten browser checks pass. Coverage includes the exact
+one-hour boundary, exclusion just outside the window, cross-sensor MAC
+aggregation, preserved older/raw records, legacy daily fields and hourly UI labels.
+The live LAN check reported 127 distinct MACs / 5624 reports in one hour versus
+1604 distinct MACs in 24 hours; the list reported `window_hours:1`. These are
+addresses, not authenticated physical devices. The collector was restarted to
+load the new queries; sensor and host network settings were unchanged.

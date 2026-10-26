@@ -88,7 +88,7 @@ not every advertisement transmitted in the area.
 
 ## Dashboard and interpretation
 
-- **BLE**, immediately after **Devices**, contains the 24-hour BLE observation
+- **BLE**, immediately after **Devices**, contains the one-hour BLE observation
   count, up to 200 advertiser summaries grouped by sensor/address/type, and the
   latest 100 retained BLE advertisements. Devices and Reporting contain Wi-Fi
   observations; BLE data is fetched only while its tab is active.
@@ -144,6 +144,6 @@ Model settings are session-only and per identity. Range estimates, name claims
 and company IDs are not evidence of physical identity or precise location.
 
 The BLE summary's **Unique devices** card matches Capture Freshness and counts
-distinct advertiser MAC addresses across sensors and address types over 24 hours. It uses all
+distinct advertiser MAC addresses across sensors and address types over hour. It uses all
 retained observations, not the table cap or filters, and does not claim an exact
 physical-device count. See [metric definition](BLE_EXPLORER.md#unique-devices-metric).

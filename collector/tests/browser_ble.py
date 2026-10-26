@@ -77,7 +77,7 @@ class BLEBrowser(unittest.TestCase):
                 body=request.request.post_data_json;posts.append(body);sensor['configuration']['values'].update(body);data=sensor
             else:
                 data={'health':{'serial_enabled':True},'alert-sources':{'macs':[address],'legacy_alerts_without_sources':0},
-                      'summary':{'frames_24h':1,'alerts_24h':1,'sensors':1,'by_subtype':[],'ble_observations_24h':2,'ble_unique_addresses_24h':unique_count},
+                      'summary':{'frames_24h':1,'alerts_24h':1,'sensors':1,'by_subtype':[],'ble_observations_24h':200,'ble_unique_addresses_24h':100,'ble_observations_1h':2,'ble_unique_addresses_1h':unique_count},
                       'channels':[],'frames':[],'devices':{'devices':[],'has_more':False},'alerts':[],
                       'sensors':[],'configuration':config}[name]
             request.fulfill(status=status,content_type='application/json',body=json.dumps(data))
@@ -99,6 +99,8 @@ class BLEBrowser(unittest.TestCase):
             self.assertEqual(page.locator('#ble-device-rows img').count(),0)
             self.assertTrue(page.locator('#ble-recent').evaluate('(node)=>!node.open'))
             self.assertEqual(page.locator('#ble-unique-devices').inner_text(),'1')
+            self.assertIn('1h: 2',page.locator('#ble-overview').inner_text())
+            self.assertIn('1h',page.locator('#ble-unique-help').inner_text())
             self.assertEqual(page.locator('#ble-identities').inner_text(),'2')
             self.assertIn('Distinct MAC addresses',page.locator('#ble-unique-definition').inner_text())
             self.assertEqual(page.locator('.ble-metrics>article').count(),4)
