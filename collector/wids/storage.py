@@ -170,8 +170,11 @@ class Store:
         ble = self.rows('SELECT COUNT(*) AS count FROM ble_observations WHERE timestamp >= ?', (after,))[0]['count']
         ble_alerts = self.rows('SELECT COUNT(*) AS count FROM ble_alerts WHERE timestamp >= ?', (after,))[0]['count']
         unique_ble = self.rows('SELECT COUNT(DISTINCT address) AS count FROM ble_observations WHERE timestamp >= ?', (after,))[0]['count']
+        hour_after = self.ble_window_start()
+        hour = self.rows('SELECT COUNT(*) AS observations,COUNT(DISTINCT address) AS addresses FROM ble_observations WHERE timestamp >= ?', (hour_after,))[0]
         return {"frames_24h": frames, "alerts_24h": alerts + ble_alerts, "sensors": sensors,
-                "by_subtype": by_subtype, 'ble_observations_24h': ble, 'ble_unique_addresses_24h': unique_ble}
+                "by_subtype": by_subtype, 'ble_observations_24h': ble, 'ble_unique_addresses_24h': unique_ble,
+                'ble_observations_1h': hour['observations'], 'ble_unique_addresses_1h': hour['addresses']}
 
     def cleanup(self) -> None:
         before = (datetime.now(timezone.utc) - timedelta(days=self.retention_days)).isoformat(timespec="seconds")
@@ -241,8 +244,12 @@ class Store:
             'SELECT * FROM ble_observations WHERE (? IS NULL OR address=?) AND (? IS NULL OR address_type=?) AND (? IS NULL OR sensor_id=?) ORDER BY id DESC LIMIT ?',
             (address, address, address_type, address_type, sensor_id, sensor_id, limit))]
 
+    @staticmethod
+    def ble_window_start():
+        return (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(timespec='seconds')
+
     def ble_devices(self, limit=200, query='', address_type='all', alert_only=False, sort='recent'):
-        after = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat(timespec='seconds')
+        after = self.ble_window_start()
         alert_after = (datetime.now(timezone.utc) - timedelta(days=self.ble_retention_days)).isoformat(timespec='seconds')
         order = {'recent': 'o.id DESC', 'rssi': 'o.rssi DESC,o.id DESC',
                  'name': "COALESCE(NULLIF(l.alias,''),observed_name,o.address) COLLATE NOCASE,o.id DESC"}[sort]
@@ -275,7 +282,7 @@ class Store:
                 result.append(row)
                 if len(result) > limit:
                     break
-        return {'devices': result[:limit], 'has_more': len(result)>limit, 'window_hours': 24,
+        return {'devices': result[:limit], 'has_more': len(result)>limit, 'window_hours': 1,
                 'total_identities': total, 'limit': limit, 'query': query,
                 'note': 'Sensor/address/type identities, not unique physical devices; private addresses rotate.'}
 

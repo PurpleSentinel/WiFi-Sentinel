@@ -146,7 +146,7 @@ Additional reads:
 - `GET /api/ble/observations?limit=100` (max 500), optional `address` and
   `address_type=public|random` filters.
 - `GET /api/ble/devices?limit=200` (max 500), latest retained observations grouped
-  by sensor/address/type in the last 24 hours; includes `has_more`.
+  by sensor/address/type in the last hour; includes `has_more`.
 - `/api/summary` adds `ble_observations_24h`; alert totals include BLE alerts.
 - `/api/alerts` adds `protocol` (`wifi` or `ble`), and BLE `address_type`.
   BLE `bssid` and `channel` are null, with `source_macs` holding the advertiser.
@@ -166,7 +166,7 @@ these are retained advertisement/address counts, not unique physical devices.
   `query` up to 200 characters searches labels/notes, addresses/sensors, service
   and company names/IDs. Types: all/public/random; sort: recent/rssi/name.
   Filtering precedes the 1–500 result limit. Response adds `total_identities`
-  (unfiltered 24-hour sensor/address/type count), `limit`, `query`, and enriched
+  (unfiltered one-hour sensor/address/type count), `limit`, `query`, and enriched
   `display_label`, `label_source`, `advertised_name`, `category`, `address_subtype`,
   `company_details`, `service_details`, `identity_confidence` and `alert_associated`.
 - `GET /api/ble/observations` accepts optional `sensor_id` in addition to address/type.
@@ -187,5 +187,19 @@ on the selected identity's samples; it adds no RF commands or ranging API.
 `GET /api/summary` adds `ble_unique_addresses_24h`: the distinct BLE
 MAC-address-only count over retained observations in the last 24 hours,
 deduplicated across sensor IDs and address types. It is independent of device-list filters and
-limits. The UI calls this **Unique devices** with explicit address-rotation and
-physical-identity qualifications. No existing fields or protocol versions change.
+limits. This daily field remains available for compatibility; the UI now uses the
+rolling-hour field described below. Daily summary field names and the WIDS
+protocol version remain unchanged.
+
+## Rolling-hour BLE reporting
+
+BLE summary cards now use `ble_observations_1h` and `ble_unique_addresses_1h`
+from `GET /api/summary`. These are calculated directly over retained observations
+from the last hour, not by resetting or deleting history. The older `_24h`
+fields remain available for API compatibility; Wi-Fi counts and shared alert
+totals retain their 24-hour window.
+
+`GET /api/ble/devices` now returns `window_hours:1`, with list aggregates and
+`total_identities` drawn from the last hour. The selected advertiser's
+`observation_count`/`window_hours` use the same rolling-hour window, while its
+latest 100 retained raw observations remain inspectable beyond that hour.

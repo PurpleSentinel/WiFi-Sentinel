@@ -169,7 +169,8 @@ def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
         summary = None
         if rows:
             named = core.store.rows("SELECT local_name,timestamp FROM ble_observations WHERE sensor_id=? AND address=? AND address_type=? AND local_name IS NOT NULL AND local_name!='' ORDER BY id DESC LIMIT 1", (sid,mac,kind))
-            summary = identify({**rows[0], **label, 'observed_name': named[0]['local_name'] if named else None})
+            count = core.store.rows('SELECT COUNT(*) AS count FROM ble_observations WHERE sensor_id=? AND address=? AND address_type=? AND timestamp>=?', (sid,mac,kind,core.store.ble_window_start()))[0]['count']
+            summary = identify({**rows[0], **label, 'observed_name': named[0]['local_name'] if named else None, 'observation_count':count, 'window_hours':1})
         return {'sensor_id':sid,'address':mac,'address_type':kind,'advertiser':summary,
                 'label':label,'observations':rows,'sample_limit':100}
 

@@ -126,3 +126,13 @@ collector restart, not a live RF lookup. Stale plots indicate the latest stored
 report is over 60 seconds old; filtered/deduplicated reports may not represent
 all advertising activity. Missing/odd range estimates are not proof of a sensor
 failure. Confirm calibration assumptions and read [ranging limits](BLE_RANGING.md).
+
+## BLE hourly display versus retention
+
+The BLE cards and advertiser list show a rolling last hour, not a counter that
+resets at the top of the hour or when the collector restarts. An advertiser can
+leave this view after an hour without a new retained report while its raw
+history remains in SQLite. The latest retained reports are still available for
+inspection. Configured BLE retention and record caps continue independently.
+Wi-Fi/shared daily summaries and legacy daily BLE API fields remain unchanged.
+Reload the browser after upgrading to load the new hourly labels and API reads.

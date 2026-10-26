@@ -7,7 +7,7 @@ is a collector/dashboard update and does not change radio or Pi network settings
 ## Layout and investigation workflow
 
 Open **BLE**, to the right of Devices. The summary shows retained advertisements
-and advertiser identities in the last 24 hours, freshness of stored reports, and
+and advertiser identities in the last hour, freshness of stored reports, and
 scan state. An identity is **sensor ID + address + address type**, not a physical
 device. Private address rotation and different sensors can produce multiple rows.
 The **Scan status** button opens the existing Status dialog.
@@ -17,7 +17,7 @@ service names/UUIDs. Filter public/random address types and identities associate
 with a retained BLE alert; sort by recent observation, strongest RSSI, or
 name/alias (with address fallback). Filters apply before the 200-row UI limit.
 The API supports up to 500 results. The total-identity count is the unfiltered
-24-hour population, not the number matching the current search. Matching results
+one-hour population, not the number matching the current search. Matching results
 can be capped; the view reports when more exist.
 
 Select a row's label or the sensor/address/type selector to open its workspace:
@@ -48,7 +48,7 @@ for Refresh. Failed refreshes explicitly warn that previous evidence may be stal
 | 4 | Known company identifier | Assigned organization followed by “advertisement” |
 | 5 | Address fallback | “Unnamed advertiser” and the address suffix |
 
-List name evidence is from the last 24 hours. Detailed inspection may use the
+List name evidence is from the last hour. Detailed inspection may use the
 last nonempty name from retained history. Company/service badges describe the
 latest advertisement; a missing field in that packet is not proof that the device
 never advertised it. The raw observations preserve earlier evidence.
@@ -99,7 +99,7 @@ Operator content is rendered as text.
 Records live in SQLite `ble_labels`, keyed by sensor/address/type. They survive
 restart and observation retention, with a maximum of 1,024 labelled identities.
 Clear both fields to delete a record. `GET /api/ble/labels` lists retained labels,
-including identities no longer in the 24-hour table; protected
+including identities no longer in the one-hour table; protected
 `POST /api/ble/label` can clear one by its original tuple. Labels and notes are
 included in backups and exposed by the same unauthenticated read boundary as
 other observation details.
@@ -120,7 +120,7 @@ constrain the table/chart area. See [dashboard layout](DASHBOARD.md#full-width-r
 ## Unique devices metric
 
 The BLE summary adds **Unique devices**, styled like **Capture Freshness**. Its
-24-hour value counts distinct **MAC addresses only** across all retained
+one-hour value counts distinct **MAC addresses only** across all retained
 observations, sensors and address types. Repeated reports of the same MAC count
 once, including sightings from different sensors or as both public and random. It is independent of table search, filtering, sorting and the 200-row
 visible cap.
@@ -133,6 +133,6 @@ reports. No names, aliases, company IDs or RSSI are used to merge addresses.
 The card's footer and tooltip make these limits explicit.
 
 The card refreshes with the BLE view, freezes with Pause and preserves its last
-value with the normal stale/error notice if refresh fails. An empty 24-hour
+value with the normal stale/error notice if refresh fails. An empty one-hour
 observation window produces 0. Four cards fit wide screens, two columns are used
 on intermediate screens and one column on small mobile displays.

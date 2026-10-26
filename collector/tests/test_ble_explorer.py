@@ -144,3 +144,36 @@ def test_unique_ble_addresses_across_sensors_types_and_24h_cutoff(settings):
         assert client.get('/api/summary').json()['ble_unique_addresses_24h'] == 206
         assert client.get('/api/ble/devices?query=no-such-name').json()['devices'] == []
         assert client.get('/api/summary').json()['ble_unique_addresses_24h'] == 206
+
+
+def test_ble_rolling_hour_cutoff_preserves_history_and_wifi_window(settings,frame,monkeypatch):
+    from datetime import datetime,timedelta,timezone
+    engine=Engine(replace(settings,ble_duplicate_seconds=0))
+    now=datetime.now(timezone.utc).replace(microsecond=0)
+    cutoff=(now-timedelta(hours=1)).isoformat(timespec='seconds')
+    monkeypatch.setattr(engine.store,'ble_window_start',lambda:cutoff)
+    with TestClient(create_app(settings,engine)) as client:
+        assert client.get('/api/summary').json()['ble_unique_addresses_1h']==0
+        for i,age in [(1,0),(2,1800),(3,3600),(4,3601),(5,90000)]:
+            address=f'cc:00:00:00:00:{i:02x}'
+            engine.ingest(advertisement(address=address))
+            engine.store.db.execute('UPDATE ble_observations SET timestamp=? WHERE address=?',
+                ((now-timedelta(seconds=age)).isoformat(timespec='seconds'),address))
+        engine.store.db.commit()
+        engine.ingest(advertisement(address='cc:00:00:00:00:01',sensor_id='second'))
+        engine.ingest(frame)
+        engine.store.db.execute('UPDATE frames SET timestamp=?',((now-timedelta(hours=2)).isoformat(timespec='seconds'),))
+        engine.store.db.commit()
+        summary=client.get('/api/summary').json()
+        assert summary['ble_unique_addresses_1h']==3
+        assert summary['ble_observations_1h']==4
+        assert summary['ble_unique_addresses_24h']==4
+        assert summary['ble_observations_24h']==5
+        assert summary['frames_24h']==1
+        devices=client.get('/api/ble/devices').json()
+        assert devices['window_hours']==1 and devices['total_identities']==4
+        assert {row['address'] for row in devices['devices']}=={'cc:00:00:00:00:01','cc:00:00:00:00:02','cc:00:00:00:00:03'}
+        assert len(client.get('/api/ble/observations?limit=500').json())==6
+        detail=client.get('/api/ble/advertiser?sensor_id=c6&address=cc:00:00:00:00:04&address_type=random').json()
+        assert detail['advertiser']['observation_count']==0 and detail['advertiser']['window_hours']==1
+        assert len(detail['observations'])==1  # Older raw evidence remains inspectable.
