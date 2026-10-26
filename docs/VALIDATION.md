@@ -425,3 +425,9 @@ load the new queries; sensor and host network settings were unchanged.
 ## System diagnostics
 
 `test_system_metrics.py` checks CPU/memory calculations, missing/permission-restricted reads, SQL time budgets, unchanged database files, cache reuse/expiry, concurrency and API output. `browser_system.py` covers toolbar order, paused/manual and periodic reads, close/focus, errors and narrow screens. See [System](SYSTEM.md).
+
+## Data purge validation
+
+`test_purge.py` covers strict UTC cutoff boundaries, scopes, invalid ages, read-only previews, expiry, preserved records, BLE accounting, partial failure, cancellation, duplicate/concurrent jobs, cooperating ingestion/retention and API authorization. `browser_purge.py` covers preview invalidation, confirmation, errors, progress/Pause, no-match state, key clearing, nested-dialog focus and mobile layout. Destructive checks use isolated databases. See [Purge](PURGE.md).
+
+On the deployed Raspberry Pi 4, an isolated 100,000-frame fixture preview took 0.058 seconds and purge took 6.322 seconds. Concurrent ingestion preserved all 202 new frames; the maximum measured ingest call was 0.020 seconds. This is a local measurement, not a latency guarantee. Live production verification uses preview only.

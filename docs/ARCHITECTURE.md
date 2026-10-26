@@ -122,3 +122,7 @@ changes or active ranging are introduced. See [explorer](BLE_EXPLORER.md) and
 ## On-demand system metrics
 
 `SystemMetrics` probes unprivileged Linux files and uses separate bounded read-only SQLite snapshots cached for 15 seconds. It does not use the ingest connection or run maintenance. The System dialog polls only while open. See [System metrics](SYSTEM.md).
+
+## Explicit data purge
+
+`PurgeManager` keeps bounded expiring previews and operation summaries in memory. A single worker deletes historical rows in committed batches through a separate connection, coordinating with Engine/Store locks and BLE count accounting. It invalidates System metrics at completion without resetting detectors or changing retention policy. See [Purge architecture and limits](PURGE.md).

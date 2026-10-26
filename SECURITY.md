@@ -84,3 +84,5 @@ physical accuracy; do not interpret it as precise location or identity evidence.
 See [BLE explorer](docs/BLE_EXPLORER.md) and [ranging](docs/BLE_RANGING.md).
 
 The unauthenticated `GET /api/system` read endpoint also exposes host identity, OS/kernel, resolved database paths, resource use and table metadata. It excludes credentials and captured row contents. Restrict dashboard reachability or use an authenticated TLS proxy. See [System](docs/SYSTEM.md).
+
+Historical data purge writes (`POST /api/purge/start` and `/api/purge/cancel`) require the existing configuration key and same-origin Origin check. Preview is read-only and unauthenticated; job summaries/counts also share the read boundary. Scope/cutoffs are server-held and confirmation is required. See [Purge access and lifecycle](docs/PURGE.md).

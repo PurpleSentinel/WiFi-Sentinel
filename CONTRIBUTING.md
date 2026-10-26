@@ -16,7 +16,7 @@ are separate namespaces.
 Run collector tests and the optional Playwright suite:
 
 ```bash
-python -m unittest discover -s collector/tests -p 'browser_*.py' -v
+PYTHONPATH=collector python -m unittest discover -s collector/tests -p 'browser_*.py' -v
 ```
 
 The browser suite needs Playwright/Chromium; host C integration checks need a C

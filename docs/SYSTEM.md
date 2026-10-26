@@ -89,5 +89,10 @@ dashboard on a trusted LAN or protect it through an authenticated TLS proxy;
 configuration write keys do not protect read endpoints.
 
 If a read fails, retry and check host permissions and storage through your normal
-administration tools. System has no maintenance controls and makes no Wi-Fi or
+administration tools. Metrics refresh has no maintenance side effects. A separate **Purge** button opens
+the explicitly confirmed [Data purge](PURGE.md) workflow; it makes no Wi-Fi or
 USB configuration changes. First CPU sample being unavailable is expected.
+
+## Purge historical data
+
+Choose **Purge** to open the separate retention-age workflow. [Data purge](PURGE.md) describes preview, authorization, permanent deletion, cancellation and backup requirements. Metrics reads remain read-only.
