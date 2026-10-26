@@ -191,3 +191,7 @@ resolve them. No history is deleted or manually reset. Raw retained observations
 operator labels and configured retention remain intact; Wi-Fi reporting stays
 on its existing 24-hour window. Reload the browser page after upgrading to see
 the 1h labels.
+
+## System dialog
+
+The **System** button between Configuration and Status opens host health and read-only database metrics from every tab. See the [System guide](SYSTEM.md) for refresh/pause behavior, units and limitations.

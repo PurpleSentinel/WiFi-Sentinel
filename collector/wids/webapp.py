@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 
+from .system_metrics import SystemMetrics
 from .config import Settings
 from .device_roles import ROLE_LABELS
 from .engine import Engine, retention_loop, serial_loop
@@ -25,6 +26,7 @@ def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
     key = configuration_key(core.settings)
     vendors = VendorLookup(core.settings.database.with_suffix('.vendors.sqlite3'))
     stop = threading.Event()
+    system_metrics = SystemMetrics()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -100,6 +102,13 @@ def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
     @app.get("/api/health")
     def health():
         return {"status": "ok", "serial_enabled": bool(settings.serial_port)}
+
+    @app.get("/api/system")
+    def system():
+        try:
+            return system_metrics.snapshot(core.settings, core.sensor.snapshot())
+        except RuntimeError as exc:
+            raise HTTPException(503, str(exc)) from exc
 
     @app.get("/api/summary")
     def summary():

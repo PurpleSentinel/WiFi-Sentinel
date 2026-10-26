@@ -118,3 +118,7 @@ raw/median markers and accessible text locally, including while paused. Per-key
 model settings are session-only and bounded to 200 entries. No radio/firmware
 changes or active ranging are introduced. See [explorer](BLE_EXPLORER.md) and
 [distance model](BLE_RANGING.md).
+
+## On-demand system metrics
+
+`SystemMetrics` probes unprivileged Linux files and uses separate bounded read-only SQLite snapshots cached for 15 seconds. It does not use the ingest connection or run maintenance. The System dialog polls only while open. See [System metrics](SYSTEM.md).

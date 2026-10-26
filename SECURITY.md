@@ -82,3 +82,5 @@ are uploaded. An assignment is not proof of hardware manufacture or ownership.
 RSSI-derived distance is an illustrative model without verified calibration or
 physical accuracy; do not interpret it as precise location or identity evidence.
 See [BLE explorer](docs/BLE_EXPLORER.md) and [ranging](docs/BLE_RANGING.md).
+
+The unauthenticated `GET /api/system` read endpoint also exposes host identity, OS/kernel, resolved database paths, resource use and table metadata. It excludes credentials and captured row contents. Restrict dashboard reachability or use an authenticated TLS proxy. See [System](docs/SYSTEM.md).
