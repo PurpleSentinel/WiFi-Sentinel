@@ -421,3 +421,7 @@ The live LAN check reported 127 distinct MACs / 5624 reports in one hour versus
 1604 distinct MACs in 24 hours; the list reported `window_hours:1`. These are
 addresses, not authenticated physical devices. The collector was restarted to
 load the new queries; sensor and host network settings were unchanged.
+
+## System diagnostics
+
+`test_system_metrics.py` checks CPU/memory calculations, missing/permission-restricted reads, SQL time budgets, unchanged database files, cache reuse/expiry, concurrency and API output. `browser_system.py` covers toolbar order, paused/manual and periodic reads, close/focus, errors and narrow screens. See [System](SYSTEM.md).

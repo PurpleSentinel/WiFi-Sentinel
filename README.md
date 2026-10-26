@@ -181,3 +181,5 @@ calibration controls and optional median. Distances are explicitly approximate
 and uncalibrated until you supply a reference; no physical accuracy is claimed.
 These #28/#29 additions require the updated collector/dashboard and are not in
 the original v1.2.0 archive. Existing sensor firmware and Pi networking are unchanged.
+
+System health and read-only database metrics are available from the **System** toolbar button. See [System guide](docs/SYSTEM.md).

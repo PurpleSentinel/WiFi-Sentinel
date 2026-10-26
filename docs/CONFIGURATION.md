@@ -185,3 +185,5 @@ This is separate from `WIDS_BLE_RETENTION_DAYS`: shortening the displayed window
 does not delete stored observations or reset sensor counters, aliases or notes.
 Wi-Fi views retain their 24-hour reporting window. This update adds no new
 configuration setting and does not change the existing retention controls.
+
+The **System** dialog reports effective retention and BLE caps alongside resource/database information; it has no configuration controls. See [System](SYSTEM.md).

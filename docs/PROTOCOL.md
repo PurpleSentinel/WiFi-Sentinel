@@ -203,3 +203,7 @@ totals retain their 24-hour window.
 `total_identities` drawn from the last hour. The selected advertiser's
 `observation_count`/`window_hours` use the same rolling-hour window, while its
 latest 100 retained raw observations remain inspectable beyond that hour.
+
+## System diagnostics API
+
+`GET /api/system` returns host health, collector process information, capture/vendor database metadata, retention policy and collection/cache times. It shares the unauthenticated read boundary. See [System API and metric definitions](SYSTEM.md#api-cost-and-access).

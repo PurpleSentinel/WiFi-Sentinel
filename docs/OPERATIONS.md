@@ -136,3 +136,7 @@ history remains in SQLite. The latest retained reports are still available for
 inspection. Configured BLE retention and record caps continue independently.
 Wi-Fi/shared daily summaries and legacy daily BLE API fields remain unchanged.
 Reload the browser after upgrading to load the new hourly labels and API reads.
+
+## Host and database inspection
+
+Open **System** for CPU, memory, uptime, storage, database sizes/counts, retention and vendor-cache information, or request `GET /api/system`. This does not run maintenance. Read the [System operations and API guide](SYSTEM.md) for sampling limits and troubleshooting.
