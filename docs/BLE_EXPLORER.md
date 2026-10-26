@@ -1,7 +1,6 @@
 # BLE advertiser explorer and identification
 
-Implemented for issues #28/#29 after Release 1.2; these enhancements are not in
-the original v1.2.0 source archive. The existing C6 firmware is sufficient: this
+Implemented for issues #28/#29 and included in Release 1.3.0. These enhancements were not in the original v1.2.0 source archive. The existing C6 firmware is sufficient: this
 is a collector/dashboard update and does not change radio or Pi network settings.
 
 ## Layout and investigation workflow

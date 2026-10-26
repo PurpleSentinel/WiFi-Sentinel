@@ -136,7 +136,7 @@ environment defaults, just as in normal operation.
 
 ## Identification and approximate ranging enhancements
 
-Post-v1.2 collector/UI work for #28/#29 adds the [BLE explorer](BLE_EXPLORER.md)
+Release 1.3 collector/UI work for #28/#29 includes the [BLE explorer](BLE_EXPLORER.md)
 and [RSSI distance curve](BLE_RANGING.md). Company/service names use an offline
 attributed SIG snapshot; unknown identifiers remain numeric. Aliases/notes are
 key-protected, persist per sensor/address/type and do not follow address rotation.

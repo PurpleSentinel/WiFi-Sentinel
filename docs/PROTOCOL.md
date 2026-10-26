@@ -160,7 +160,7 @@ and `/api/frames` remain Wi-Fi-only. Observation records include decoded
 `payload_hex`. BLE device summaries add first/last seen and observation counts;
 these are retained advertisement/address counts, not unique physical devices.
 
-## BLE explorer APIs (post-v1.2)
+## BLE explorer APIs (included in v1.3.0)
 
 - `GET /api/ble/devices?limit=200&query=...&address_type=all&alert_only=false&sort=recent`:
   `query` up to 200 characters searches labels/notes, addresses/sensors, service
