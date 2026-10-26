@@ -148,6 +148,7 @@ BLE retention and a 100,000-record cap per BLE table; attached sensor identity a
 - [Approximate RSSI distance-decay plot and calibration](docs/BLE_RANGING.md)
 - [Clickable MACs, vendor details and red alert sources](docs/MAC_LOOKUP.md)
 - [Dashboard Configuration and Status dialogs](docs/CONFIGURATION.md)
+- [Release 1.3.1 notes](docs/RELEASE_1.3.1.md)
 - [Release 1.3 notes and upgrade steps](docs/RELEASE_1.3.md)
 
 - [Architecture and data flow](docs/ARCHITECTURE.md)
@@ -164,7 +165,7 @@ BLE retention and a 100,000-record cap per BLE table; attached sensor identity a
 
 ## Version and contributions
 
-**Release v1.3.0** (hardware validation remains at prototype scope), MIT licensed. The collector/dashboard source is version 1.3.0; unchanged C6 firmware source retains its 1.2.0 label. Contributions welcome via PR; run unit tests, review changes for passive-only operation, and document real hardware test results. Run the Python and browser checks locally; no GitHub CI checks were reported for recent PRs. Firmware compilation is a separate manual validation task because the current archive does not bundle the ESP-IDF toolchain.
+**Release v1.3.1** (hardware validation remains at prototype scope), MIT licensed. The collector/dashboard source is version 1.3.1; unchanged C6 firmware source retains its 1.2.0 label. Contributions welcome via PR; run unit tests, review changes for passive-only operation, and document real hardware test results. Run the Python and browser checks locally; no GitHub CI checks were reported for recent PRs. Firmware compilation is a separate manual validation task because the current archive does not bundle the ESP-IDF toolchain.
 
 ## Bluetooth Low Energy monitoring
 
