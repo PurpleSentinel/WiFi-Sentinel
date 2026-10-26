@@ -4,6 +4,8 @@
 
 ![Status](https://img.shields.io/badge/status-prototype-orange) ![Python](https://img.shields.io/badge/Python-3.10%2B-blue) ![Firmware](https://img.shields.io/badge/ESP--IDF-5.5.2%2B-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
+> **Experimental project:** WiFi Sentinel exists to explore and understand the ESP32-C6 and its Wi-Fi/BLE capabilities. It is not a production-capable security solution and does not conform to expected secure design practices. Do not rely on it as your sole security monitor or expose its dashboard/API to untrusted networks. See [Security & privacy](SECURITY.md) for known limitations.
+
 > **Tested hardware:** ESP32-C6 revision v0.0 with native USB Serial/JTAG, connected to a Raspberry Pi 4 Model B Rev 1.2. ESP-IDF v5.5.4 build/flash, live 2.4 GHz Wi-Fi and passive BLE advertisements, runtime controls and reboot persistence have been exercised. The exact sensor board product/PCB and antenna remain unidentified. Optional C5/5 GHz support is unvalidated; the connected C6 is **2.4 GHz only**. See [hardware evidence](docs/HARDWARE.md) and [validation limits](docs/VALIDATION.md).
 
 WiFi Sentinel passively captures **802.11 management-frame metadata** and optional **Bluetooth Low Energy advertisements**, reports events via USB serial, and applies explainable rules in a Python collector. It does **not** inject frames, disconnect clients, attempt logins, crack passwords, decode user traffic, or perform countermeasures.
