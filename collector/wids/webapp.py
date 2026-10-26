@@ -1,5 +1,6 @@
 """Dashboard data and key-protected settings; use a trusted LAN or TLS proxy."""
 import secrets
+import sqlite3
 import threading
 from contextlib import asynccontextmanager
 from dataclasses import asdict
@@ -9,6 +10,7 @@ from urllib.parse import urlsplit
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 
+from .purge import PurgeManager
 from .system_metrics import SystemMetrics
 from .config import Settings
 from .device_roles import ROLE_LABELS
@@ -27,6 +29,7 @@ def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
     vendors = VendorLookup(core.settings.database.with_suffix('.vendors.sqlite3'))
     stop = threading.Event()
     system_metrics = SystemMetrics()
+    purge = PurgeManager(core, system_metrics.invalidate)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -45,6 +48,7 @@ def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
             # Never close SQLite while a worker can still be using it.
             for worker in workers:
                 worker.join()
+            purge.close()
             core.store.close()
             vendors.close()
 
@@ -102,6 +106,46 @@ def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
     @app.get("/api/health")
     def health():
         return {"status": "ok", "serial_enabled": bool(settings.serial_port)}
+
+    @app.get('/api/purge')
+    def purge_status():
+        return {'job': purge.status(), 'defaults_hours': {
+            'frames': core.settings.retention_days * 24, 'alerts': core.settings.retention_days * 24,
+            'ble_observations': core.settings.ble_retention_days * 24,
+            'ble_alerts': core.settings.ble_retention_days * 24}}
+
+    @app.post('/api/purge/preview')
+    def purge_preview(values: dict):
+        try:
+            if set(values) != {'ages_hours'}:
+                raise ValueError('Supply ages_hours only')
+            return purge.preview(values['ages_hours'])
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        except (sqlite3.Error, OSError) as exc:
+            raise HTTPException(503, 'Preview unavailable; database busy or query budget exceeded. Retry shortly.') from exc
+
+    @app.post('/api/purge/start')
+    def purge_start(values: dict, request: Request):
+        authorize(request)
+        try:
+            if set(values) != {'token', 'confirmation'}:
+                raise ValueError('Supply preview token and confirmation only; preview again to change scope')
+            return purge.start(values['token'], values['confirmation'])
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @app.post('/api/purge/cancel')
+    def purge_cancel(values: dict, request: Request):
+        authorize(request)
+        try:
+            if set(values) != {'id'} or not isinstance(values['id'], str):
+                raise ValueError('Supply an operation id')
+            return purge.cancel(values['id'])
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
 
     @app.get("/api/system")
     def system():

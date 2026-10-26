@@ -187,3 +187,5 @@ Wi-Fi views retain their 24-hour reporting window. This update adds no new
 configuration setting and does not change the existing retention controls.
 
 The **System** dialog reports effective retention and BLE caps alongside resource/database information; it has no configuration controls. See [System](SYSTEM.md).
+
+**System → Purge** uses current retention settings as optional defaults for a one-time deletion. It never changes ongoing retention policy. See [Data purge](PURGE.md).

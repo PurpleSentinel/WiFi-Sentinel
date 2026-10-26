@@ -195,3 +195,7 @@ the 1h labels.
 ## System dialog
 
 The **System** button between Configuration and Status opens host health and read-only database metrics from every tab. See the [System guide](SYSTEM.md) for refresh/pause behavior, units and limitations.
+
+## Purge dialog
+
+**System → Purge** opens a separate age-based history purge dialog with preview, typed confirmation, progress and stopping between batches. Pause freezes automatic progress, not a running purge. See [Data purge](PURGE.md).

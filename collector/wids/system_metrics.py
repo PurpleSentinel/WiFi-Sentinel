@@ -165,6 +165,10 @@ class SystemMetrics:
         self.database_sample_time = float('-inf')
         self.lock = threading.Lock()
 
+    def invalidate(self):
+        with self.lock:
+            self.database_sample_time = float("-inf")
+
     def host(self, database):
         now, process_cpu = time.monotonic(), time.process_time()
         ticks = cpu_ticks(read_text('/proc/stat'))

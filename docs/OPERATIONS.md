@@ -140,3 +140,7 @@ Reload the browser after upgrading to load the new hourly labels and API reads.
 ## Host and database inspection
 
 Open **System** for CPU, memory, uptime, storage, database sizes/counts, retention and vendor-cache information, or request `GET /api/system`. This does not run maintenance. Read the [System operations and API guide](SYSTEM.md) for sampling limits and troubleshooting.
+
+## One-time historical purge
+
+Use **System → Purge** to select historical data categories and retention ages, preview exact UTC cutoffs/counts, then confirm with the configuration key. Back up first; committed deletions are permanent. Closing does not stop the job and deleting rows may not shrink files. See [Purge operations, cancellation and backup](PURGE.md).

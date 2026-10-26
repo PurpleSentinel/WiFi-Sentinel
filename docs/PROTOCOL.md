@@ -207,3 +207,7 @@ latest 100 retained raw observations remain inspectable beyond that hour.
 ## System diagnostics API
 
 `GET /api/system` returns host health, collector process information, capture/vendor database metadata, retention policy and collection/cache times. It shares the unauthenticated read boundary. See [System API and metric definitions](SYSTEM.md#api-cost-and-access).
+
+## Purge API
+
+`GET /api/purge` reports current/latest operation and retention defaults. `POST /api/purge/preview` calculates read-only eligibility. Key-protected same-origin `POST /api/purge/start` and `/api/purge/cancel` execute or stop an explicitly previewed operation. See [API schemas, state and access](PURGE.md#http-api-and-access).
