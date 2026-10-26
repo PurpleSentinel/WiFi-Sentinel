@@ -1,5 +1,6 @@
 """One serialized ingestion pipeline for serial, demo and replay."""
 import logging
+from datetime import datetime, timedelta, timezone
 import sqlite3
 import threading
 import time
@@ -23,26 +24,99 @@ class Engine:
         settings = load_settings(settings)
         self.settings = settings
         self.store = Store(settings.database, settings.retention_days,
-                           settings.ble_retention_days, settings.ble_max_records)
+                           settings.ble_retention_days, settings.ble_max_records,
+                           settings.retention_hours, settings.ble_retention_hours,
+                           settings.automatic_age_deletion)
         self.ble = BLEPolicy()
         self.detector = Detector(settings)
         self.lock = threading.Lock()
+        self.retention_lock = threading.Lock()
+        self.retention_status_lock = threading.Lock()
+        self.retention_wakeup = threading.Event()
+        self.retention_status = {"running": False, "last_run_at": None, "last_source": None,
+                                 "last_deleted": self.store.startup_cleanup, "current_deleted": None,
+                                 "last_error": None, "started_at": None,
+                                 "next_run_at": None, "startup_deleted": self.store.startup_cleanup}
         self.processed = 0
         self.sensor = SensorControl()
 
-    def configure(self, values: dict) -> None:
+    def configure(self, values: dict, defer_cleanup: bool = False) -> None:
         values = validate_collector(values)
         with self.lock:
+            if 'retention_days' in values and 'retention_hours' not in values:
+                values['retention_hours'] = None
+            if 'ble_retention_days' in values and 'ble_retention_hours' not in values:
+                values['ble_retention_hours'] = None
             settings = replace(self.settings, **values)
+            policy_changed = any(getattr(settings, name) != getattr(self.settings, name) for name in
+                ('retention_days', 'ble_retention_days', 'retention_hours', 'ble_retention_hours',
+                 'automatic_age_deletion', 'cleanup_interval_seconds', 'ble_max_records'))
             save_settings(settings)
             self.settings = settings
-            # Existing windows have the old policy; start new windows on apply.
-            self.detector = Detector(settings)
+            # A retention-only save leaves live detection windows intact.
+            if any(name not in ('retention_days', 'ble_retention_days', 'retention_hours',
+                                'ble_retention_hours', 'automatic_age_deletion',
+                                'cleanup_interval_seconds', 'ble_max_records') for name in values):
+                self.detector = Detector(settings)
             self.store.retention_days = settings.retention_days
             self.store.ble_retention_days = settings.ble_retention_days
             self.store.ble_max_records = settings.ble_max_records
-            self.ble = BLEPolicy()
-            self.store.cleanup()
+            self.store.retention_hours = settings.retention_hours
+            self.store.ble_retention_hours = settings.ble_retention_hours
+            self.store.automatic_age_deletion = settings.automatic_age_deletion
+            if any(name.startswith('ble_') and name not in ('ble_retention_days', 'ble_retention_hours', 'ble_max_records') for name in values):
+                self.ble = BLEPolicy()
+            if policy_changed:
+                self.retention_wakeup.set()
+                if not defer_cleanup:
+                    self.store.cleanup()
+
+    def retention_snapshot(self) -> dict:
+        with self.retention_status_lock:
+            return dict(self.retention_status)
+
+    def run_retention(self, source: str, stop: threading.Event | None = None) -> dict | None:
+        purge = getattr(self, 'purge_manager', None)
+        if purge is not None and purge.worker is not None and purge.worker.is_alive():
+            return None
+        if not self.retention_lock.acquire(blocking=False):
+            return None
+        totals = {name: 0 for name in ('frames', 'alerts', 'ble_observations', 'ble_alerts')}
+        with self.retention_status_lock:
+            self.retention_status.update(running=True, last_source=source, last_error=None,
+                                         started_at=datetime.now(timezone.utc).isoformat(timespec='seconds'),
+                                         current_deleted=dict(totals))
+        try:
+            while True:
+                if stop is not None and stop.is_set():
+                    break
+                with self.lock:
+                    deleted = self.store.cleanup_batch()
+                for table, count in deleted.items():
+                    totals[table] += count
+                with self.retention_status_lock:
+                    self.retention_status['current_deleted'] = dict(totals)
+                if all(count < 500 for count in deleted.values()):
+                    break
+                if stop is not None and stop.wait(0.02):
+                    break
+                if stop is None:
+                    time.sleep(0.02)
+            with self.retention_status_lock:
+                self.retention_status.update(last_run_at=datetime.now(timezone.utc).isoformat(timespec='seconds'),
+                                             last_deleted=totals)
+            return totals
+        except (sqlite3.Error, OSError) as exc:
+            with self.retention_status_lock:
+                self.retention_status.update(last_error=f'{type(exc).__name__}: {str(exc)[:180]}',
+                                             last_run_at=datetime.now(timezone.utc).isoformat(timespec='seconds'),
+                                             last_deleted=totals)
+            raise
+        finally:
+            with self.retention_status_lock:
+                self.retention_status['running'] = False
+                self.retention_status['current_deleted'] = None
+            self.retention_lock.release()
 
     def ingest(self, event: dict[str, Any]) -> bool:
         with self.lock:
@@ -71,16 +145,28 @@ class Engine:
 
 
 def retention_loop(engine: Engine, stop: threading.Event,
-                   interval: float = RETENTION_INTERVAL_SECONDS) -> None:
-    """Expire records without sensor traffic; stop.wait makes shutdown immediate."""
-    LOG.info('Scheduled retention cleanup every %s seconds', interval)
-    while not stop.wait(interval):
+                   interval: float | None = None) -> None:
+    """Reschedule on policy edits; complete age/cap backlog in short batches."""
+    LOG.info('Scheduled retention cleanup worker started')
+    while True:
+        seconds = interval if interval is not None else engine.settings.cleanup_interval_seconds
+        with engine.retention_status_lock:
+            engine.retention_status['next_run_at'] = (datetime.now(timezone.utc) + timedelta(seconds=seconds)).isoformat(timespec='seconds')
+        if isinstance(stop, threading.Event):
+            awakened = engine.retention_wakeup.wait(seconds)
+            engine.retention_wakeup.clear()
+            if stop.is_set():
+                break
+            if awakened:
+                continue
+        elif stop.wait(seconds):
+            break
         try:
-            # Serialize with ingestion and runtime retention-policy changes.
-            with engine.lock:
-                engine.store.cleanup()
+            engine.run_retention('scheduled', stop if isinstance(stop, threading.Event) else None)
         except (sqlite3.Error, OSError):
             LOG.exception('Scheduled retention cleanup failed; retrying on the next interval')
+    with engine.retention_status_lock:
+        engine.retention_status['next_run_at'] = None
 
 
 def serial_loop(engine: Engine, stop: threading.Event) -> None:

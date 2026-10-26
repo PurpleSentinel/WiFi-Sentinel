@@ -101,9 +101,15 @@ def test_ble_api_storage_alerts_retention_and_wifi_compatibility(settings, frame
 def test_ble_configuration_persistence_limits_and_bounded_storage(settings):
     engine = Engine(settings)
     with TestClient(create_app(settings, engine)) as client:
-        values = {'ble_filters': ['name:Test', 'company:004c'], 'ble_retention_days': 2,
-                  'ble_duplicate_seconds': 0, 'ble_max_records': 100, 'ble_alert_rules': ['name:Test']}
+        values = {'ble_filters': ['name:Test', 'company:004c'],
+                  'ble_duplicate_seconds': 0, 'ble_alert_rules': ['name:Test']}
         assert client.post('/api/configuration/collector', headers=headers(settings), json=values).status_code == 200
+        policy = client.get('/api/retention').json()['policy']
+        policy.update(ble_age_hours=48, ble_max_records=100)
+        preview = client.post('/api/retention/preview', json=policy).json()
+        assert preview['destructive'] is True
+        assert client.post('/api/retention/apply', headers=headers(settings), json={
+            'policy': policy, 'token': preview['token'], 'confirmation': 'RETENTION'}).status_code == 200
         for bad in ({'ble_filters': ['invalid']}, {'ble_alert_rules': ['company:xyz']},
                     {'ble_retention_days': 0}, {'ble_duplicate_seconds': -1}, {'ble_max_records': 99}):
             assert client.post('/api/configuration/collector', headers=headers(settings), json=bad).status_code == 400

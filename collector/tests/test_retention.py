@@ -22,11 +22,12 @@ def test_idle_server_expires_frames_and_alerts_on_timer(settings, frame, monkeyp
     tick = threading.Event()
     cleaned = threading.Event()
     waits = []
-    cleanup = engine.store.cleanup
+    cleanup = engine.store.cleanup_batch
     def tracked_cleanup():
-        cleanup()
+        result = cleanup()
         cleaned.set()
-    monkeypatch.setattr(engine.store, 'cleanup', tracked_cleanup)
+        return result
+    monkeypatch.setattr(engine.store, 'cleanup_batch', tracked_cleanup)
     def controlled_timer(core, stop):
         class Timer:
             def wait(self, interval):
@@ -61,11 +62,12 @@ def test_cleanup_failure_is_logged_and_retried(settings, monkeypatch, caplog):
         calls.append(True)
         if len(calls) == 1:
             raise sqlite3.OperationalError('Temporary database contention')
+        return {'frames': 0, 'alerts': 0, 'ble_observations': 0, 'ble_alerts': 0}
     class Stop:
         def wait(self, interval):
             waits.append(interval)
             return len(waits) > 2
-    monkeypatch.setattr(engine.store, 'cleanup', cleanup)
+    monkeypatch.setattr(engine.store, 'cleanup_batch', cleanup)
     retention_loop(engine, Stop())
     assert len(calls) == 2
     assert waits == [60, 60, 60]

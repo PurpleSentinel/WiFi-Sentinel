@@ -14,7 +14,9 @@ from .ble_identity import identify
 
 class Store:
     def __init__(self, filename: Path, retention_days: int = 7,
-                 ble_retention_days: int = 7, ble_max_records: int = 100000):
+                 ble_retention_days: int = 7, ble_max_records: int = 100000,
+                 retention_hours: int | None = None, ble_retention_hours: int | None = None,
+                 automatic_age_deletion: bool = True):
         self.lock = threading.RLock()
         filename.parent.mkdir(parents=True, exist_ok=True)
         self.db = sqlite3.connect(str(filename), check_same_thread=False, timeout=15)
@@ -78,9 +80,12 @@ class Store:
         self.ble_retention_days = ble_retention_days
         self.ble_max_records = ble_max_records
         self.retention_days = retention_days
+        self.retention_hours = retention_hours
+        self.ble_retention_hours = ble_retention_hours
+        self.automatic_age_deletion = automatic_age_deletion
         self.ble_counts = {table: self.db.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
                            for table in ('ble_observations', 'ble_alerts')}
-        self.cleanup()
+        self.startup_cleanup = self.cleanup()
 
     @staticmethod
     def timestamp() -> str:
@@ -176,17 +181,49 @@ class Store:
                 "by_subtype": by_subtype, 'ble_observations_24h': ble, 'ble_unique_addresses_24h': unique_ble,
                 'ble_observations_1h': hour['observations'], 'ble_unique_addresses_1h': hour['addresses']}
 
-    def cleanup(self) -> None:
-        before = (datetime.now(timezone.utc) - timedelta(days=self.retention_days)).isoformat(timespec="seconds")
+    def age_cutoffs(self) -> tuple[str, str]:
+        now = datetime.now(timezone.utc)
+        wifi = now - timedelta(hours=self.retention_hours) if self.retention_hours is not None else now - timedelta(days=self.retention_days)
+        ble = now - timedelta(hours=self.ble_retention_hours) if self.ble_retention_hours is not None else now - timedelta(days=self.ble_retention_days)
+        return wifi.isoformat(timespec='seconds'), ble.isoformat(timespec='seconds')
+
+    def cleanup(self) -> dict[str, int]:
+        """Full startup/manual cleanup; scheduled work uses cleanup_batch instead."""
+        before, ble_before = self.age_cutoffs()
+        deleted = {}
         with self.lock, self.db:
-            ble_before = (datetime.now(timezone.utc) - timedelta(days=self.ble_retention_days)).isoformat(timespec='seconds')
-            self.db.execute('DELETE FROM ble_observations WHERE timestamp < ?', (ble_before,))
-            self.db.execute('DELETE FROM ble_alerts WHERE timestamp < ?', (ble_before,))
+            if self.automatic_age_deletion:
+                for table, cutoff in [('ble_observations', ble_before), ('ble_alerts', ble_before),
+                                      ('frames', before), ('alerts', before)]:
+                    deleted[table] = self.db.execute(f'DELETE FROM {table} WHERE timestamp < ?', (cutoff,)).rowcount
             self.ble_counts = {table: self.db.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
                                for table in self.ble_counts}
+            before_cap = dict(self.ble_counts)
             self._trim_ble()
-            self.db.execute("DELETE FROM frames WHERE timestamp < ?", (before,))
-            self.db.execute("DELETE FROM alerts WHERE timestamp < ?", (before,))
+            for table in before_cap:
+                deleted[table] = deleted.get(table, 0) + before_cap[table] - self.ble_counts[table]
+        return deleted
+
+    def cleanup_batch(self, limit: int = 500) -> dict[str, int]:
+        """One bounded pass through age and BLE count policies, then release SQLite."""
+        before, ble_before = self.age_cutoffs()
+        deleted = {table: 0 for table in ('frames', 'alerts', 'ble_observations', 'ble_alerts')}
+        with self.lock, self.db:
+            if self.automatic_age_deletion:
+                for table, cutoff in [('ble_observations', ble_before), ('ble_alerts', ble_before),
+                                      ('frames', before), ('alerts', before)]:
+                    deleted[table] += self.db.execute(
+                        f'DELETE FROM {table} WHERE id IN (SELECT id FROM {table} WHERE timestamp < ? ORDER BY timestamp LIMIT ?)',
+                        (cutoff, limit)).rowcount
+            for table in ('ble_observations', 'ble_alerts'):
+                count = self.db.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
+                excess = max(0, count - self.ble_max_records)
+                if excess:
+                    deleted[table] += self.db.execute(
+                        f'DELETE FROM {table} WHERE id IN (SELECT id FROM {table} ORDER BY id LIMIT ?)',
+                        (min(limit, excess),)).rowcount
+                self.ble_counts[table] = count - min(limit, excess)
+        return deleted
 
     def _classified_devices(self, limit: int, role: str, mac: str | None = None) -> list[dict]:
         after = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat(timespec="seconds")

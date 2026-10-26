@@ -11,6 +11,18 @@ def _csv_env(name: str, lower: bool = True) -> tuple[str, ...]:
     return tuple(value.lower() for value in values) if lower else values
 
 
+def _optional_integer(name: str) -> int | None:
+    raw = os.getenv(name, '').strip()
+    return int(raw) if raw else None
+
+
+def _boolean(name: str, default: bool = True) -> bool:
+    raw = os.getenv(name, str(default)).strip().lower()
+    if raw not in ('true', 'false', '1', '0', 'yes', 'no'):
+        raise ValueError(f'{name} must be true or false')
+    return raw in ('true', '1', 'yes')
+
+
 def _integer(name: str, default: int, low: int = 1) -> int:
     value = int(os.getenv(name, str(default)))
     if value < low:
@@ -41,6 +53,10 @@ class Settings:
     ble_max_records: int = 100000
     ble_filters: tuple[str, ...] = ()
     ble_alert_rules: tuple[str, ...] = ()
+    retention_hours: int | None = None
+    ble_retention_hours: int | None = None
+    automatic_age_deletion: bool = True
+    cleanup_interval_seconds: int = 60
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -49,6 +65,10 @@ class Settings:
         for value in protected:
             protected_name(value)
         return cls(
+            retention_hours=_optional_integer('WIDS_RETENTION_HOURS'),
+            ble_retention_hours=_optional_integer('WIDS_BLE_RETENTION_HOURS'),
+            automatic_age_deletion=_boolean('WIDS_AUTOMATIC_AGE_DELETION'),
+            cleanup_interval_seconds=_integer('WIDS_CLEANUP_INTERVAL_SECONDS', 60, 15),
             ble_retention_days=_integer('WIDS_BLE_RETENTION_DAYS', 7),
             ble_duplicate_seconds=_integer('WIDS_BLE_DUPLICATE_SECONDS', 10, 0),
             ble_max_records=_integer('WIDS_BLE_MAX_RECORDS', 100000, 100),

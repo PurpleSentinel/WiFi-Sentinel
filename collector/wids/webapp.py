@@ -11,11 +11,12 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 
 from .purge import PurgeManager
+from .retention import RetentionManager, validate_policy
 from .system_metrics import SystemMetrics
 from .config import Settings
 from .device_roles import ROLE_LABELS
 from .engine import Engine, retention_loop, serial_loop
-from .runtime import LIMITS, LISTS, RESTART_FIELDS, configuration_key
+from .runtime import LIMITS, LISTS, RESTART_FIELDS, RETENTION_FIELDS, configuration_key
 from .vendors import VendorLookup, normalize_mac
 from .models import SENSOR
 from .ble_identity import identify
@@ -30,6 +31,8 @@ def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
     stop = threading.Event()
     system_metrics = SystemMetrics()
     purge = PurgeManager(core, system_metrics.invalidate)
+    core.purge_manager = purge
+    retention = RetentionManager(core, purge, system_metrics.invalidate)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -45,10 +48,12 @@ def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
             yield
         finally:
             stop.set()
+            core.retention_wakeup.set()
             # Never close SQLite while a worker can still be using it.
             for worker in workers:
                 worker.join()
             purge.close()
+            retention.close()
             core.store.close()
             vendors.close()
 
@@ -85,6 +90,8 @@ def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
         authorize(request)
         try:
             if scope == 'collector':
+                if set(values) & set(RETENTION_FIELDS):
+                    raise ValueError('Use the Retention window and /api/retention for automatic policy changes')
                 core.configure(values)
                 return configuration()
             if scope == 'sensor':
@@ -107,12 +114,40 @@ def create_app(settings: Settings, engine: Engine | None = None) -> FastAPI:
     def health():
         return {"status": "ok", "serial_enabled": bool(settings.serial_port)}
 
+    @app.get('/api/retention')
+    def retention_status():
+        return retention.status()
+
+    @app.post('/api/retention/preview')
+    def retention_preview(values: dict):
+        try:
+            return retention.preview(values)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        except (sqlite3.Error, OSError) as exc:
+            raise HTTPException(503, 'Retention preview unavailable; retry shortly') from exc
+
+    @app.post('/api/retention/apply')
+    def retention_apply(values: dict, request: Request):
+        authorize(request)
+        try:
+            if set(values) != {'policy', 'token', 'confirmation'}:
+                raise ValueError('Supply policy, preview token and confirmation only')
+            validate_policy(values['policy'])
+            return retention.apply(values['policy'], values['token'], values['confirmation'])
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except OSError as exc:
+            raise HTTPException(500, 'Could not persist retention policy') from exc
+
     @app.get('/api/purge')
     def purge_status():
+        wifi = core.settings.retention_hours if core.settings.retention_hours is not None else core.settings.retention_days * 24
+        ble = core.settings.ble_retention_hours if core.settings.ble_retention_hours is not None else core.settings.ble_retention_days * 24
         return {'job': purge.status(), 'defaults_hours': {
-            'frames': core.settings.retention_days * 24, 'alerts': core.settings.retention_days * 24,
-            'ble_observations': core.settings.ble_retention_days * 24,
-            'ble_alerts': core.settings.ble_retention_days * 24}}
+            'frames': wifi, 'alerts': wifi, 'ble_observations': ble, 'ble_alerts': ble}}
 
     @app.post('/api/purge/preview')
     def purge_preview(values: dict):

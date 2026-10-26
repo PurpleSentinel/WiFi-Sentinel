@@ -185,3 +185,5 @@ the original v1.2.0 archive. Existing sensor firmware and Pi networking are unch
 System health and read-only database metrics are available from the **System** toolbar button. See [System guide](docs/SYSTEM.md).
 
 Use **System → Purge** for a previewed, key-authorized one-time retention-age deletion. See [Data purge](docs/PURGE.md).
+
+Configure ongoing automatic deletion with **Configuration → Retention** (independent Wi-Fi/BLE ages, schedule, BLE cap and previewed changes). See [Automatic retention](docs/RETENTION.md).
