@@ -305,7 +305,7 @@ parser/storage, and relative Markdown file links and changed-file checksums were
 verified. Documentation describes controlled-device and extended-advertisement
 validation as outstanding rather than claiming those tests passed.
 
-## Issues #28/#29 — BLE explorer and RSSI curve (post-v1.2)
+## Issues #28/#29 — BLE explorer and RSSI curve (included in v1.3.0)
 
 - **123 collector tests** and **seven browser checks** pass. The new coverage
   exercises SIG company/service name decoding, unknown identifiers, label
@@ -336,7 +336,7 @@ validation as outstanding rather than claiming those tests passed.
   possibly filtered/deduplicated samples, not an exhaustive RSSI stream.
 - Updated repository docs and hierarchical wiki cover the explorer, alias privacy,
   registry provenance/maintenance, browser-session model controls and calibration
-  limits. These are post-v1.2 enhancements, not content in its original archive.
+  limits. These enhancements are included in v1.3.0, not the original v1.2.0 archive.
 
 ## Issue #31 — full-width dashboard layout
 

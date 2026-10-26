@@ -84,7 +84,7 @@ or untested C5 BLE hardware. See [BLE limits](BLE.md) and [validation](VALIDATIO
 
 ## Collector-side BLE explorer additions
 
-Post-v1.2 identification/layout and RSSI-curve enhancements require an updated
+Release 1.3 identification/layout and RSSI-curve enhancements require the 1.3
 collector/dashboard, not a new sensor image or host Bluetooth stack. Preserve
 the current USB device, Wi-Fi channel and Pi network configuration. Review
 [BLE explorer](BLE_EXPLORER.md) and [approximate ranging](BLE_RANGING.md).

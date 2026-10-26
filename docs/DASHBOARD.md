@@ -117,7 +117,7 @@ empty. Check Configuration and Status. See [BLE setup and limits](BLE.md).
 
 ### Advertiser explorer and curve
 
-Post-v1.2 #28/#29 improvements add readable labels, offline company/service names,
+Release 1.3 #28/#29 improvements include readable labels, offline company/service names,
 public/random subtype indicators, search, address/alert filters and sorting.
 Select a label or identity selector for evidence, operator labels and the
 approximate distance-decay plot. Raw observations remain available in secondary

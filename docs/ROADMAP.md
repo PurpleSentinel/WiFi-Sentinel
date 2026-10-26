@@ -16,7 +16,7 @@
 - C6 native USB, channel switching and NVS persistence have been exercised. UART and C5 dual-band receive still need hardware validation.
 - Firmware compilation in CI (version-pinned ESP-IDF) and representative test fixtures.
 - Add explicit collection-lag metadata and loss counters to the dashboard.
-- Configure log rotation. Retention cleanup now runs on a 60-second service timer, including while ingestion is idle.
+- Configure log rotation. Automatic retention now has a configurable service timer, including while ingestion is idle.
 
 ## Phase 2
 
@@ -35,18 +35,20 @@
 - Authenticated UI (SSO), TLS, audit logging, RBAC and multi-user access.
 - Optional external alert sinks (webhooks/Slack), alert acknowledgement and analyst notes.
 - Export formats and SIEM integration; richer incident correlation with approved AP logs.
-- Retention controls to support data-protection assessments.
+- Extend retention reporting/audit controls for data-protection assessments.
 
 ## Not planned
 
 Frame injection, deauth transmission, password guessing, automatic disconnects, covert collection, or network disruption. This is an observation and detection platform.
 
-## Implemented after Release 1.2
+## Included in Release 1.3
 
 - #29: evidence-based BLE labels, offline SIG company/service names, protected
   aliases/notes and an improved searchable/filterable explorer.
 - #28: a selected-identity RSSI distance-decay plot, session calibration/model
   controls and median/raw estimates with explicit uncertainty/freshness labels.
+- Dashboard full-width layout, larger tables, sorting, rolling-hour BLE counts and unique-address card (#31/#33 and follow-up work).
+- System host/database dialog (#36), confirmed one-time Purge (#38) and ongoing automatic retention controls (#40).
 
 Physical ranging calibration/accuracy experiments, identity continuity across
 rotating addresses and extended-advertisement decoding remain outside this work.

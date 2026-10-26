@@ -146,6 +146,7 @@ BLE retention and a 100,000-record cap per BLE table; attached sensor identity a
 - [Approximate RSSI distance-decay plot and calibration](docs/BLE_RANGING.md)
 - [Clickable MACs, vendor details and red alert sources](docs/MAC_LOOKUP.md)
 - [Dashboard Configuration and Status dialogs](docs/CONFIGURATION.md)
+- [Release 1.3 notes and upgrade steps](docs/RELEASE_1.3.md)
 
 - [Architecture and data flow](docs/ARCHITECTURE.md)
 - [Tested hardware, BOM, board unknowns and scaling](docs/HARDWARE.md)
@@ -161,7 +162,7 @@ BLE retention and a 100,000-record cap per BLE table; attached sensor identity a
 
 ## Version and contributions
 
-**Release v1.2.0** (hardware validation remains at prototype scope), MIT licensed. Contributions welcome via PR; run unit tests, review changes for passive-only operation, and document real hardware test results. Run the Python and browser checks locally; no GitHub CI checks were reported for recent PRs. Firmware compilation is a separate manual validation task because the current archive does not bundle the ESP-IDF toolchain.
+**Release v1.3.0** (hardware validation remains at prototype scope), MIT licensed. The collector/dashboard source is version 1.3.0; unchanged C6 firmware source retains its 1.2.0 label. Contributions welcome via PR; run unit tests, review changes for passive-only operation, and document real hardware test results. Run the Python and browser checks locally; no GitHub CI checks were reported for recent PRs. Firmware compilation is a separate manual validation task because the current archive does not bundle the ESP-IDF toolchain.
 
 ## Bluetooth Low Energy monitoring
 
@@ -172,15 +173,15 @@ rule matches. Passive legacy LE 1M scanning excludes Bluetooth Classic, extended
 advertisements and active scan responses. Random BLE addresses are not submitted
 for MAC vendor lookup. See [BLE configuration, limits and interpretation](docs/BLE.md).
 
-### BLE explorer and approximate range — post-v1.2 enhancements
+### BLE explorer and approximate range — included in v1.3.0
 
 The BLE tab now offers readable evidence-based labels, offline Bluetooth SIG
 company/service names, protected aliases/notes, search/filter/sort controls and
 an advertiser workspace. Select a label to see its RSSI distance-decay model,
 calibration controls and optional median. Distances are explicitly approximate
 and uncalibrated until you supply a reference; no physical accuracy is claimed.
-These #28/#29 additions require the updated collector/dashboard and are not in
-the original v1.2.0 archive. Existing sensor firmware and Pi networking are unchanged.
+These #28/#29 additions are included in v1.3.0; they were absent from the original
+v1.2.0 archive. The C6 firmware is unchanged from v1.2.0, and Pi networking is unchanged.
 
 System health and read-only database metrics are available from the **System** toolbar button. See [System guide](docs/SYSTEM.md).
 
